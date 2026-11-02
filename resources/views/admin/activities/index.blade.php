@@ -1,6 +1,10 @@
 @extends('layouts.admin')
 
 @section('content')
+<style>
+    .form-error { display: block; margin-top: 0.25rem; color: #dc2626; font-size: 0.8rem; }
+</style>
+
 <ul class="breadcrumb">
     <li><a href="{{ route('admin.dashboard') }}">Admin</a></li>
     <li><i class="fa-solid fa-chevron-right" style="font-size: 0.65rem;"></i></li>
@@ -114,80 +118,102 @@
                             <option value="{{ $hobby->id }}">{{ $hobby->name }}</option>
                             @endforeach
                         </select>
+                        @error('hobby_id') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group col-span-2">
                         <label class="form-label">Activity Title *</label>
                         <input type="text" name="activity_title" class="form-control" required>
+                        @error('activity_title') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Activity Type</label>
                         <input type="text" name="activity_type" class="form-control" placeholder="e.g. Time-Bound">
+                        @error('activity_type') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
                         <label class="form-label">Subcategory</label>
                         <input type="text" name="subcategory" class="form-control">
+                        @error('subcategory') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Duration (Minutes)</label>
                         <input type="text" name="duration_minutes" class="form-control">
+                        @error('duration_minutes') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Tier</label>
-                        <input type="text" name="tier" class="form-control" placeholder="e.g. 1, Free, Premium">
+                        <label class="form-label">Tier *</label>
+                        <select name="tier" class="form-control" required>
+                            <option value="">Select a tier</option>
+                            <option value="1" @selected(old('tier') === '1')>Tier 1</option>
+                            <option value="2" @selected(old('tier') === '2')>Tier 2</option>
+                            <option value="3" @selected(old('tier') === '3')>Tier 3</option>
+                        </select>
+                        @error('tier') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Cost</label>
                         <input type="text" name="cost" class="form-control" placeholder="e.g. Free, $10">
+                        @error('cost') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
                         <label class="form-label">Location</label>
                         <input type="text" name="location" class="form-control" placeholder="Indoor/Outdoor">
+                        @error('location') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Energy Level</label>
                         <input type="text" name="energy_level" class="form-control" placeholder="Low, Medium, High">
+                        @error('energy_level') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
                         <label class="form-label">Social Type</label>
                         <input type="text" name="social_type" class="form-control" placeholder="Solo, Group, Partner">
+                        @error('social_type') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Min Age</label>
                         <input type="number" name="min_age" class="form-control">
+                        @error('min_age') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
                         <label class="form-label">Max Age</label>
                         <input type="number" name="max_age" class="form-control">
+                        @error('max_age') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Sensory Tags</label>
                         <input type="text" name="sensory_tags" class="form-control" placeholder="Tactile, Visual">
+                        @error('sensory_tags') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
                         <label class="form-label">Outcome Tag</label>
                         <input type="text" name="outcome_tag" class="form-control">
+                        @error('outcome_tag') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group col-span-2">
                         <label class="form-label">Description</label>
                         <textarea name="description" class="form-control" rows="2"></textarea>
+                        @error('description') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group col-span-2">
                         <label class="form-label">Instructions</label>
                         <textarea name="instruction" class="form-control" rows="2"></textarea>
+                        @error('instruction') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group col-span-2">
                         <label class="form-label">Neurodivergent Notes</label>
                         <textarea name="neurodivergent_notes" class="form-control" rows="2"></textarea>
+                        @error('neurodivergent_notes') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group col-span-2">
@@ -221,6 +247,7 @@
                     <div class="form-group col-span-2">
                         <label class="form-label">Activity Title *</label>
                         <input type="text" name="activity_title" id="edit-title" class="form-control" required>
+                        @error('activity_title') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group col-span-2">
@@ -231,75 +258,96 @@
                             <option value="{{ $hobby->id }}">{{ $hobby->name }}</option>
                             @endforeach
                         </select>
+                        @error('hobby_id') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Activity Type</label>
                         <input type="text" name="activity_type" id="edit-type" class="form-control">
+                        @error('activity_type') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
                         <label class="form-label">Subcategory</label>
                         <input type="text" name="subcategory" id="edit-subcategory" class="form-control">
+                        @error('subcategory') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Duration (Minutes)</label>
                         <input type="text" name="duration_minutes" id="edit-duration" class="form-control">
+                        @error('duration_minutes') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Tier</label>
-                        <input type="text" name="tier" id="edit-tier" class="form-control">
+                        <label class="form-label">Tier *</label>
+                        <select name="tier" id="edit-tier" class="form-control" required>
+                            <option value="">Select a tier</option>
+                            <option value="1">Tier 1</option>
+                            <option value="2">Tier 2</option>
+                            <option value="3">Tier 3</option>
+                        </select>
+                        @error('tier') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Cost</label>
                         <input type="text" name="cost" id="edit-cost" class="form-control">
+                        @error('cost') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
                         <label class="form-label">Location</label>
                         <input type="text" name="location" id="edit-location" class="form-control">
+                        @error('location') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Energy Level</label>
                         <input type="text" name="energy_level" id="edit-energy" class="form-control">
+                        @error('energy_level') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
                         <label class="form-label">Social Type</label>
                         <input type="text" name="social_type" id="edit-social" class="form-control">
+                        @error('social_type') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Min Age</label>
                         <input type="number" name="min_age" id="edit-min-age" class="form-control">
+                        @error('min_age') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
                         <label class="form-label">Max Age</label>
                         <input type="number" name="max_age" id="edit-max-age" class="form-control">
+                        @error('max_age') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Sensory Tags</label>
                         <input type="text" name="sensory_tags" id="edit-sensory" class="form-control">
+                        @error('sensory_tags') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
                         <label class="form-label">Outcome Tag</label>
                         <input type="text" name="outcome_tag" id="edit-outcome" class="form-control">
+                        @error('outcome_tag') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group col-span-2">
                         <label class="form-label">Description</label>
                         <textarea name="description" id="edit-description" class="form-control" rows="2"></textarea>
+                        @error('description') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group col-span-2">
                         <label class="form-label">Instructions</label>
                         <textarea name="instruction" id="edit-instruction" class="form-control" rows="2"></textarea>
+                        @error('instruction') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group col-span-2">
                         <label class="form-label">Neurodivergent Notes</label>
                         <textarea name="neurodivergent_notes" id="edit-nd-notes" class="form-control" rows="2"></textarea>
+                        @error('neurodivergent_notes') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group col-span-2">
@@ -340,6 +388,12 @@
 </div>
 
 <script>
+    @if ($errors->any())
+        window.addEventListener('DOMContentLoaded', () => {
+            openModal(@json(old('_method') === 'PUT' ? 'edit-activity-modal' : 'create-activity-modal'));
+        });
+    @endif
+
     function editActivity(activity) {
         const updateUrl = "{{ route('admin.activities.update', ':id') }}".replace(':id', activity.id);
         document.getElementById('edit-activity-form').action = updateUrl;

@@ -16,20 +16,28 @@ use App\Http\Requests\ResetPasswordRequest;
 use App\Http\Requests\VerifyOtpRequest;
 use App\Models\DeviceFingerprint;
 use App\Models\Subscription;
+use App\Organization\Http\Resources\CorporateJoinResource;
+use App\Organization\Services\CorporateOnboardingService;
 
 class AuthController extends Controller
 {
     public function __construct(
-        protected AuthService $authService
+        protected AuthService $authService,
+        protected CorporateOnboardingService $corporateOnboarding,
     ) {}
 
     public function register(RegisterRequest $request)
     {
         $result = $this->authService->register($request->validated());
 
+        // Corporate work-email join. Never fails the registration; the status says what happened.
+        $corporateJoin = $this->corporateOnboarding->joinOnRegistration($result['user']->id);
+        $corporateJoin->membership?->loadMissing('organization');
+
         return response()->json([
             'token' => $result['token'],
             'user'  => new UserResource($result['user']),
+            'corporate_join' => CorporateJoinResource::make($corporateJoin)->resolve($request),
         ], 201);
     }
 
