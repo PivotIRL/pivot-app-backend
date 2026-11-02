@@ -54,8 +54,7 @@ class MembershipAccessService
         }
 
         $legacyAll = (bool) ($row->legacy_all_categories ?? false);
-        $categoryIds = DB::table('membership_categories')->where('user_id', $user->id)
-            ->orderBy('hobby_id')->pluck('hobby_id')->map(fn ($id) => (string) $id)->all();
+        $categoryIds = $this->selectedCategoryIds($user);
 
         $limits = $effective === 'premium'
             ? ['daily_challenges' => 5, 'category_count' => null, 'blocked_apps' => null, 'scheduled_blocking_hours' => 24, 'blocking_intervals' => null, 'blocked_app_usage_minutes' => 30, 'hardcore' => true, 'team_connections' => 10, 'full_research' => true]
@@ -86,6 +85,20 @@ class MembershipAccessService
             'limits' => $limits,
             'announcement' => ['version' => self::ANNOUNCEMENT_VERSION, 'required' => $eligibleFree && ! $ack],
         ];
+    }
+
+    /** Reuse onboarding choices when no separate membership selection exists. */
+    public function selectedCategoryIds(User|Users $user): array
+    {
+        $selected = DB::table('membership_categories')->where('user_id', $user->id)
+            ->orderBy('hobby_id')->pluck('hobby_id')->map(fn ($id) => (string) $id)->all();
+        if ($selected !== []) return $selected;
+
+        // Standard includes five categories. Keep Micro-Movement and choose the
+        // remaining categories deterministically from the user's onboarding choices.
+        return $user->hobbies()->orderByRaw("CASE WHEN LOWER(name) = 'micro-movement' THEN 0 ELSE 1 END")
+            ->orderBy('hobbies.id')->limit(5)->pluck('hobbies.id')
+            ->map(fn ($id) => (string) $id)->all();
     }
 
     public function categories(User|Users $user): array

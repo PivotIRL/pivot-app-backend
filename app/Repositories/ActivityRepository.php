@@ -172,7 +172,7 @@ class ActivityRepository implements ActivityRepositoryInterface
         $maxTier = min(max($subscriptionTierId, 1), 3);
         $allowedTiers = range(1, $maxTier);
 
-        $selectedIds = DB::table('membership_categories')->where('user_id', $user->id)->pluck('hobby_id')->map(fn ($id) => (int) $id)->all();
+        $selectedIds = app(MembershipAccessService::class)->selectedCategoryIds($user);
         $legacyAll = (bool) DB::table('account_access')->where('user_id', $user->id)->value('legacy_all_categories');
         $hobbies = $package === 'premium' || $legacyAll
             ? \App\Models\Hobby::query()->get()
@@ -338,7 +338,7 @@ class ActivityRepository implements ActivityRepositoryInterface
         $legacyAll = (bool) DB::table('account_access')->where('user_id', $user->id)->value('legacy_all_categories');
         if ($legacyAll) return;
         if ($package === 'standard') {
-            $ids = DB::table('membership_categories')->where('user_id', $user->id)->pluck('hobby_id')->all();
+            $ids = app(MembershipAccessService::class)->selectedCategoryIds($user);
             $query->whereIn('hobby_id', $ids ?: [-1]);
         }
     }

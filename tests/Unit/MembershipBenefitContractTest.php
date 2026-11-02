@@ -33,7 +33,7 @@ class MembershipBenefitContractTest extends TestCase
             DB::shouldReceive('table')->with('membership_trials')->once()->andReturn($trials);
             $categories = Mockery::mock(Builder::class);
             $categories->shouldReceive('where', 'orderBy')->andReturnSelf();
-            $categories->shouldReceive('pluck')->once()->andReturn(collect());
+            $categories->shouldReceive('pluck')->once()->andReturn(collect([1, 2, 3, 4, 5]));
             DB::shouldReceive('table')->with('membership_categories')->once()->andReturn($categories);
             $ack = Mockery::mock(Builder::class);
             $ack->shouldReceive('where')->andReturnSelf();
