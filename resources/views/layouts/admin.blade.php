@@ -90,10 +90,10 @@ use Illuminate\Support\Facades\Auth;
                     <i class="fa-solid fa-credit-card"></i>
                     <span>Subscriptions</span>
                 </a>
-                <a href="#" class="nav-item {{ request()->routeIs('admin.payment-history.*') ? 'active' : '' }}">
+                <!-- <a href="#" class="nav-item {{ request()->routeIs('admin.payment-history.*') ? 'active' : '' }}">
                     <i class="fa-solid fa-receipt"></i>
                     <span>Payment History</span>
-                </a>
+                </a> -->
                 <a href="{{ route('admin.promo-codes.index') }}" class="nav-item {{ request()->routeIs('admin.promo-codes.*') ? 'active' : '' }}">
                     <i class="fa-solid fa-ticket"></i>
                     <span>Promo Codes</span>

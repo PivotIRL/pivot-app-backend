@@ -121,8 +121,6 @@ class ActivityController extends Controller
     public function store(ActivityRequest $request)
     {
         $data = $request->validated();
-        $data['neurodivergent_friendly'] = $request->has('neurodivergent_friendly') ? 'Yes' : 'No';
-        $data['status'] = $data['status'] ?? 'active';
 
         Activity::create($data);
 
@@ -133,12 +131,6 @@ class ActivityController extends Controller
     {
         $activity = Activity::findOrFail($id);
         $data = $request->validated();
-
-        $data['neurodivergent_friendly'] = $request->has('neurodivergent_friendly') ? 'Yes' : 'No';
-
-        if (empty($data['hobby_id'])) {
-            $data['hobby_id'] = $activity->hobby_id ?? 1;
-        }
 
         $activity->update($data);
 
