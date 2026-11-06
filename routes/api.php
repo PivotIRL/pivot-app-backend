@@ -86,6 +86,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/user/emergency', [AuthController::class, 'currentUserCountry']);
         Route::patch('/user/status', [AuthController::class, 'updateStatus']);
         Route::post('/user/fcm-token', [AuthController::class, 'updateFcmToken']);
+        Route::post('/user/activity', [AuthController::class, 'recordActivity']);
         Route::delete('/user/delete', [AuthController::class, 'deleteAccount']);
 
         // Challenge pack routes

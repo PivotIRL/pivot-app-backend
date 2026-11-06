@@ -57,6 +57,8 @@ class AuthRepository implements AuthRepositoryInterface
 
     public function updateFcmTokenByUserId(int $userId, string $fcmToken): Users
     {
+        // A device token must belong only to the account currently using it.
+        Users::where('fcm_token', $fcmToken)->where('id', '!=', $userId)->update(['fcm_token' => null]);
         $user = Users::findOrFail($userId);
         $user->fcm_token = $fcmToken;
         $user->save();

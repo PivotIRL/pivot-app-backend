@@ -101,6 +101,22 @@ class AuthController extends Controller
         ]);
     }
 
+    public function recordActivity(Request $request)
+    {
+        $data = $request->validate([
+            'timezone' => 'required|timezone:all',
+            'active_at' => 'sometimes|date',
+        ]);
+        // Offline retries preserve the actual foreground time, with future device clock skew clamped.
+        $activeAt = isset($data['active_at']) ? \Illuminate\Support\Carbon::parse($data['active_at'])->utc()->min(now()->utc()) : now()->utc();
+        $user = $request->user();
+        $user->forceFill(['notification_timezone' => $data['timezone']])->save();
+        $user->newQuery()->whereKey($user->id)
+            ->where(fn ($query) => $query->whereNull('last_active_at')->orWhere('last_active_at', '<', $activeAt))
+            ->update(['last_active_at' => $activeAt]);
+        return response()->json(['message' => 'Activity recorded']);
+    }
+
     public function forgotPassword(ForgotPasswordRequest $request)
     {
         $this->authService->sendResetPasswordEmail($request->email);
