@@ -186,10 +186,10 @@ Other helpers on the same service:
 
 | Method | Purpose |
 |---|---|
-| `rolesIn(user, org)` | Active `OrganizationRole`s of the user in that organization. Empty while the user's membership there is `suspended` (B4) |
+| `rolesIn(user, org)` | Active `OrganizationRole`s of the user in that organization. Empty while the user has a membership there that is not `active` (B4). A role with no membership row stays usable |
 | `highestRoleIn(user, org)` | Highest-ranked active role (used for the rank rule) |
 | `canEnterTenant(user, org)` | Pivot staff, or an active `ORG_OWNER` / `ORG_ADMIN` / `ORG_ANALYST` role |
-| `allowsDelegatedAdministration(org)` | `false` when the organization is suspended or removed |
+| `allowsDelegatedAdministration(org)` | `true` only when the organization is `active` or `pending` and not removed |
 
 ### Policies
 
@@ -249,7 +249,7 @@ Gate::authorize('revoke', $roleAssignment);
 Applied to every route under `/api/v1/organizations/{organization}`. It runs after Sanctum authentication and route model binding.
 
 ```
-Request ──► auth:sanctum ──► bind {organization} ──► organization.user ──► organization.tenant ──► controller (Gate::authorize) ──► service
+Request ──► auth:organization-dashboard ──► bind {organization} ──► organization.dashboard ──► organization.tenant ──► controller (Gate::authorize) ──► service
 ```
 
 `organization.user` (`UseCorporateUserModel`) runs first. The existing `/auth/login` issues Sanctum tokens on `App\Models\Users`, while corporate policies and services use `App\Models\User`. This middleware replaces the authenticated `Users` object with the matching `User` (same `users` row) for the rest of the request. Without it, every real mobile/admin token would get 403.
@@ -434,7 +434,7 @@ $user->organizationMemberships();                 // HasMany
 
 ## 10. API reference
 
-Base path: `/api/v1/organizations/{organization}` (UUID). All routes need `Authorization: Bearer <sanctum token>` and pass `organization.tenant`.
+Base path: `/api/v1/organizations/{organization}` (UUID). All routes need `Authorization: Bearer <dashboard token>` (from `POST /api/v1/organization/auth/login`; mobile tokens get 401) and pass `organization.tenant`.
 
 | Method | Path | Policy check | Success |
 |---|---|---|---|
@@ -575,7 +575,7 @@ These choices were made during implementation. Change them in one place if the b
 | `PIVOT_SUPPORT` may manage members and invitations and view reports and audit logs | `PivotRole::permissions()` |
 | `ORG_ADMIN` and `ORG_OWNER` have the same delegated permissions; the difference is only the rank (who they can assign) | `OrganizationRole::permissions()` / `rank()` |
 | Corporate admins can only give roles to **active members** of their organization | `RoleAssignmentService::assign()` |
-| Suspended organizations block their own admins completely (also read access) | `OrganizationAccessService::allowsDelegatedAdministration()` and `EnsureOrganizationTenant` |
+| Suspended and expired organizations block their own admins completely (also read access) | `OrganizationAccessService::allowsDelegatedAdministration()` and `EnsureOrganizationTenant` |
 | Expired organizations keep admin access (to see renewal information) | Same as above |
 | Denied cross-tenant attempts are logged with `organization_id = NULL` | `EnsureOrganizationTenant` |
 | IP and user agent in audit history are shown only to Pivot staff | `OrganizationAuditLogResource` |

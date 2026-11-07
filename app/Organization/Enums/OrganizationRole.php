@@ -69,4 +69,12 @@ enum OrganizationRole: string
     {
         return $this !== self::ORG_MEMBER;
     }
+
+    /**
+     * @return list<self>
+     */
+    public static function administrativeRoles(): array
+    {
+        return array_values(array_filter(self::cases(), fn (self $role) => $role->isAdministrative()));
+    }
 }

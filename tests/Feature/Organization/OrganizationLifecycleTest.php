@@ -151,7 +151,7 @@ class OrganizationLifecycleTest extends TestCase
         $organization = Organization::factory()->suspended()->create();
 
         foreach ([$this->makeStaff(PivotRole::PIVOT_SUPPORT), $this->makeOrgUser($organization, OrganizationRole::ORG_OWNER)] as $actor) {
-            Sanctum::actingAs($actor);
+            $this->actingAsDashboard($actor);
             $this->postJson($this->url($organization, 'reactivate'), ['reason' => 'x'])->assertForbidden();
         }
 
@@ -163,7 +163,7 @@ class OrganizationLifecycleTest extends TestCase
     public function test_name_only_update_records_only_the_name(): void
     {
         $organization = Organization::factory()->create();
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         $this->putJson("/api/v1/organizations/{$organization->id}", ['name' => 'Renamed Ltd'])->assertOk();
 
@@ -175,7 +175,7 @@ class OrganizationLifecycleTest extends TestCase
     public function test_contract_field_update_without_status_change_does_not_record_status(): void
     {
         $organization = Organization::factory()->create(['status' => OrganizationStatus::ACTIVE, 'seat_limit' => 50]);
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         $this->putJson("/api/v1/organizations/{$organization->id}", ['seat_limit' => 75])->assertOk();
 
@@ -185,7 +185,7 @@ class OrganizationLifecycleTest extends TestCase
     public function test_update_with_unchanged_values_writes_no_update_audit_row(): void
     {
         $organization = Organization::factory()->create();
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         $this->putJson("/api/v1/organizations/{$organization->id}", [
             'name' => $organization->name,
@@ -201,7 +201,7 @@ class OrganizationLifecycleTest extends TestCase
     public function test_update_that_changes_status_records_the_status_change(): void
     {
         $organization = Organization::factory()->create(['status' => OrganizationStatus::ACTIVE]);
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         $this->putJson("/api/v1/organizations/{$organization->id}", [
             'contract_start_at' => now()->addMonth()->toISOString(),
@@ -226,7 +226,7 @@ class OrganizationLifecycleTest extends TestCase
 
     private function renew(Organization $organization, int $seatLimit, $startsAt = null)
     {
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         return $this->postJson("/api/v1/organizations/{$organization->id}/contracts/renew", [
             'package_code' => 'STANDARD',
@@ -238,7 +238,7 @@ class OrganizationLifecycleTest extends TestCase
 
     private function reactivate(Organization $organization)
     {
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         return $this->postJson($this->url($organization, 'reactivate'), ['reason' => 'Resolved']);
     }

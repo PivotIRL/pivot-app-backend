@@ -3,6 +3,7 @@
 namespace App\Organization\Repositories;
 
 use App\Organization\Enums\MembershipStatus;
+use App\Organization\Enums\OrganizationRole;
 use App\Organization\Enums\OrganizationStatus;
 use App\Organization\Models\Organization;
 use App\Organization\Models\OrganizationContract;
@@ -31,6 +32,16 @@ class OrganizationRepository implements OrganizationRepositoryInterface
         return Organization::query()
             ->orderBy('name')
             ->paginate($perPage);
+    }
+
+    public function withAdministrativeRoleHeldBy(int $userId): Collection
+    {
+        return Organization::query()
+            ->whereHas('roleAssignments', fn ($assignments) => $assignments
+                ->where('user_id', $userId)
+                ->whereNull('revoked_at')
+                ->whereIn('role', OrganizationRole::administrativeRoles()))
+            ->get();
     }
 
     public function connectedToUser(int $userId): Collection

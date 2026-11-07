@@ -44,4 +44,10 @@ enum AuditAction: string
     case SEATS_RECONCILED = 'organization.seats_reconciled';
 
     case TENANT_ACCESS_DENIED = 'tenant.access_denied';
+
+    case DASHBOARD_LOGIN = 'organization_dashboard.login';
+    case DASHBOARD_LOGIN_DENIED = 'organization_dashboard.login_denied';
+    case DASHBOARD_LOGOUT = 'organization_dashboard.logout';
+    case DASHBOARD_PASSWORD_SET = 'organization_dashboard.password_set';
+    case DASHBOARD_PASSWORD_RESET = 'organization_dashboard.password_reset';
 }

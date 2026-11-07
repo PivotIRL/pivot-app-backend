@@ -25,7 +25,8 @@ class OrganizationMessagesTest extends TestCase
 
     public function test_listing_organizations_without_a_staff_role_explains_why(): void
     {
-        Sanctum::actingAs($this->makeUser());
+        $organization = Organization::factory()->create();
+        $this->actingAsDashboard($this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN));
 
         $this->getJson('/api/v1/organizations')
             ->assertForbidden()
@@ -35,7 +36,7 @@ class OrganizationMessagesTest extends TestCase
     public function test_org_admin_is_told_which_action_is_not_allowed(): void
     {
         $organization = Organization::factory()->create();
-        Sanctum::actingAs($this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN));
+        $this->actingAsDashboard($this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN));
 
         $this->postJson("/api/v1/organizations/{$organization->id}/suspend", ['reason' => 'Test'])
             ->assertForbidden()
@@ -47,7 +48,7 @@ class OrganizationMessagesTest extends TestCase
         $organization = Organization::factory()->create();
         $admin = $this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN);
         $membership = OrganizationMembership::where('user_id', $admin->id)->firstOrFail();
-        Sanctum::actingAs($admin);
+        $this->actingAsDashboard($admin);
 
         $this->postJson("/api/v1/organizations/{$organization->id}/members/{$membership->id}/suspend", ['reason' => 'Test'])
             ->assertForbidden()
@@ -59,7 +60,7 @@ class OrganizationMessagesTest extends TestCase
         $organization = Organization::factory()->create();
         $owner = $this->makeOrgUser($organization, OrganizationRole::ORG_OWNER);
         $membership = OrganizationMembership::where('user_id', $owner->id)->firstOrFail();
-        Sanctum::actingAs($this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN));
+        $this->actingAsDashboard($this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN));
 
         $this->postJson("/api/v1/organizations/{$organization->id}/members/{$membership->id}/suspend", ['reason' => 'Test'])
             ->assertForbidden()
@@ -72,12 +73,12 @@ class OrganizationMessagesTest extends TestCase
         $target = $this->makeMember($organization);
         $payload = ['user_id' => $target->id, 'role' => OrganizationRole::ORG_OWNER->value];
 
-        Sanctum::actingAs($this->makeOrgUser($organization, OrganizationRole::ORG_ANALYST));
+        $this->actingAsDashboard($this->makeOrgUser($organization, OrganizationRole::ORG_ANALYST));
         $this->postJson("/api/v1/organizations/{$organization->id}/roles", $payload)
             ->assertForbidden()
             ->assertExactJson(['message' => "You do not have permission to manage this organization's roles."]);
 
-        Sanctum::actingAs($this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN));
+        $this->actingAsDashboard($this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN));
         $this->postJson("/api/v1/organizations/{$organization->id}/roles", $payload)
             ->assertForbidden()
             ->assertExactJson(['message' => 'You can only assign roles lower than your own.']);
@@ -89,7 +90,7 @@ class OrganizationMessagesTest extends TestCase
         $admin = $this->makeUser();
         $this->makeMember($organization, $admin);
         $assignment = $this->grantRole($admin, $organization, OrganizationRole::ORG_ADMIN);
-        Sanctum::actingAs($admin);
+        $this->actingAsDashboard($admin);
 
         $this->deleteJson("/api/v1/organizations/{$organization->id}/roles/{$assignment->id}")
             ->assertForbidden()
@@ -99,7 +100,7 @@ class OrganizationMessagesTest extends TestCase
     public function test_allowed_actions_are_still_allowed(): void
     {
         $organization = Organization::factory()->create();
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPPORT));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPPORT));
 
         $this->getJson('/api/v1/organizations')->assertOk();
         $this->getJson("/api/v1/organizations/{$organization->id}")->assertOk();
@@ -107,7 +108,7 @@ class OrganizationMessagesTest extends TestCase
 
     public function test_organization_validation_uses_readable_messages(): void
     {
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         $this->postJson('/api/v1/organizations', [
             'name' => 'Acme',
@@ -133,7 +134,7 @@ class OrganizationMessagesTest extends TestCase
     public function test_enum_errors_list_the_allowed_values(): void
     {
         $organization = Organization::factory()->create();
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         $roles = implode(', ', array_column(OrganizationRole::cases(), 'value'));
 
@@ -148,11 +149,13 @@ class OrganizationMessagesTest extends TestCase
     public function test_domain_and_required_field_messages(): void
     {
         $organization = Organization::factory()->create();
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         $this->postJson("/api/v1/organizations/{$organization->id}/domains", ['domain' => 'not a domain'])
             ->assertUnprocessable()
             ->assertJsonPath('errors.domain.0', 'Enter a valid domain, for example example.com.');
+
+        Sanctum::actingAs($this->makeUser());
 
         $this->postJson('/api/v1/corporate/join/code', [])
             ->assertUnprocessable()
@@ -170,7 +173,7 @@ class OrganizationMessagesTest extends TestCase
     public function test_update_request_inherits_the_shared_messages(): void
     {
         $organization = Organization::factory()->create();
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         $this->putJson("/api/v1/organizations/{$organization->id}", ['slug' => 'not a slug'])
             ->assertUnprocessable()

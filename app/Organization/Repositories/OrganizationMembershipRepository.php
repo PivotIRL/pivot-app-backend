@@ -67,15 +67,6 @@ class OrganizationMembershipRepository implements OrganizationMembershipReposito
         return $membership;
     }
 
-    public function isSuspendedMember(string $organizationId, int $userId): bool
-    {
-        return OrganizationMembership::query()
-            ->where('organization_id', $organizationId)
-            ->where('user_id', $userId)
-            ->where('status', MembershipStatus::SUSPENDED)
-            ->exists();
-    }
-
     public function expireActive(string $organizationId, string $reason, Carbon $at): int
     {
         return OrganizationMembership::query()

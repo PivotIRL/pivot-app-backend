@@ -29,7 +29,7 @@ class RoleAssignmentTest extends TestCase
     {
         $admin = $this->makeOrgUser($this->organization, OrganizationRole::ORG_ADMIN);
         $member = $this->makeMember($this->organization);
-        Sanctum::actingAs($admin);
+        $this->actingAsDashboard($admin);
 
         $response = $this->withHeader('User-Agent', 'PivotAdminTest/1.0')
             ->postJson($this->rolesUrl(), ['user_id' => $member->id, 'role' => 'ORG_ANALYST'])
@@ -52,7 +52,7 @@ class RoleAssignmentTest extends TestCase
 
     public function test_admin_cannot_assign_admin_or_owner(): void
     {
-        Sanctum::actingAs($this->makeOrgUser($this->organization, OrganizationRole::ORG_ADMIN));
+        $this->actingAsDashboard($this->makeOrgUser($this->organization, OrganizationRole::ORG_ADMIN));
         $member = $this->makeMember($this->organization);
 
         foreach (['ORG_ADMIN', 'ORG_OWNER'] as $role) {
@@ -62,7 +62,7 @@ class RoleAssignmentTest extends TestCase
 
     public function test_owner_can_assign_admin_but_not_owner(): void
     {
-        Sanctum::actingAs($this->makeOrgUser($this->organization, OrganizationRole::ORG_OWNER));
+        $this->actingAsDashboard($this->makeOrgUser($this->organization, OrganizationRole::ORG_OWNER));
         $member = $this->makeMember($this->organization);
 
         $this->postJson($this->rolesUrl(), ['user_id' => $member->id, 'role' => 'ORG_ADMIN'])->assertCreated();
@@ -71,7 +71,7 @@ class RoleAssignmentTest extends TestCase
 
     public function test_corporate_admin_can_only_assign_roles_to_active_members(): void
     {
-        Sanctum::actingAs($this->makeOrgUser($this->organization, OrganizationRole::ORG_ADMIN));
+        $this->actingAsDashboard($this->makeOrgUser($this->organization, OrganizationRole::ORG_ADMIN));
         $outsider = $this->makeUser();
 
         $this->postJson($this->rolesUrl(), ['user_id' => $outsider->id, 'role' => 'ORG_ANALYST'])
@@ -80,7 +80,7 @@ class RoleAssignmentTest extends TestCase
 
     public function test_assigning_the_same_active_role_twice_conflicts(): void
     {
-        Sanctum::actingAs($this->makeOrgUser($this->organization, OrganizationRole::ORG_ADMIN));
+        $this->actingAsDashboard($this->makeOrgUser($this->organization, OrganizationRole::ORG_ADMIN));
         $member = $this->makeMember($this->organization);
         $payload = ['user_id' => $member->id, 'role' => 'ORG_ANALYST'];
 
@@ -90,7 +90,7 @@ class RoleAssignmentTest extends TestCase
 
     public function test_super_admin_can_assign_first_owner_to_a_non_member(): void
     {
-        Sanctum::actingAs($superAdmin = $this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($superAdmin = $this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
         $user = $this->makeUser();
 
         $this->postJson($this->rolesUrl(), ['user_id' => $user->id, 'role' => 'ORG_OWNER'])->assertCreated();
@@ -104,7 +104,7 @@ class RoleAssignmentTest extends TestCase
 
     public function test_support_can_view_roles_but_not_assign(): void
     {
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPPORT));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPPORT));
         $member = $this->makeMember($this->organization);
 
         $this->getJson($this->rolesUrl())->assertOk();
@@ -116,7 +116,7 @@ class RoleAssignmentTest extends TestCase
         $admin = $this->makeOrgUser($this->organization, OrganizationRole::ORG_ADMIN);
         $analyst = $this->makeOrgUser($this->organization, OrganizationRole::ORG_ANALYST);
         $assignment = $analyst->organizationRoleAssignments()->first();
-        Sanctum::actingAs($admin);
+        $this->actingAsDashboard($admin);
 
         $this->deleteJson($this->rolesUrl($assignment->id), ['reason' => 'Left the HR team'])
             ->assertOk()
@@ -136,7 +136,7 @@ class RoleAssignmentTest extends TestCase
     {
         $admin = $this->makeOrgUser($this->organization, OrganizationRole::ORG_ADMIN);
         $owner = $this->makeOrgUser($this->organization, OrganizationRole::ORG_OWNER);
-        Sanctum::actingAs($admin);
+        $this->actingAsDashboard($admin);
 
         $this->deleteJson($this->rolesUrl($owner->organizationRoleAssignments()->first()->id))->assertForbidden();
         $this->deleteJson($this->rolesUrl($admin->organizationRoleAssignments()->first()->id))->assertForbidden();
@@ -144,7 +144,7 @@ class RoleAssignmentTest extends TestCase
 
     public function test_invalid_role_is_rejected(): void
     {
-        Sanctum::actingAs($this->makeOrgUser($this->organization, OrganizationRole::ORG_OWNER));
+        $this->actingAsDashboard($this->makeOrgUser($this->organization, OrganizationRole::ORG_OWNER));
 
         $this->postJson($this->rolesUrl(), ['user_id' => $this->makeMember($this->organization)->id, 'role' => 'PIVOT_SUPER_ADMIN'])
             ->assertStatus(422)

@@ -44,6 +44,18 @@ return [
             'driver' => 'session',
             'provider' => 'admins',
         ],
+
+        // Mobile App API: accepts only tokens owned by a MobileApiTokenable model.
+        'sanctum' => [
+            'driver' => 'sanctum',
+            'provider' => 'mobile_api_tokens',
+        ],
+
+        // Organization Dashboard API: accepts only tokens owned by a dashboard account.
+        'organization-dashboard' => [
+            'driver' => 'sanctum',
+            'provider' => 'organization_dashboard_accounts',
+        ],
     ],
 
     /*
@@ -71,6 +83,18 @@ return [
         'admins' => [
             'driver' => 'eloquent',
             'model' => App\Models\Admin::class,
+        ],
+
+        // Used only for Sanctum's token owner check (instanceof), so an interface is enough here.
+        // Mobile tokens have two owner models, App\Models\Users and App\Models\User.
+        'mobile_api_tokens' => [
+            'driver' => 'eloquent',
+            'model' => App\Contracts\MobileApiTokenable::class,
+        ],
+
+        'organization_dashboard_accounts' => [
+            'driver' => 'eloquent',
+            'model' => App\Organization\Models\OrganizationDashboardAccount::class,
         ],
 
         // 'users' => [
@@ -103,6 +127,22 @@ return [
             'provider' => 'users',
             'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
             'expire' => 60,
+            'throttle' => 60,
+        ],
+
+        // Dashboard password links have their own table, separate from mobile OTPs.
+        'organization_dashboard' => [
+            'provider' => 'organization_dashboard_accounts',
+            'table' => 'organization_dashboard_password_resets',
+            'expire' => 60,
+            'throttle' => 60,
+        ],
+
+        // First-time setup links last longer than reset links (72 hours).
+        'organization_dashboard_setup' => [
+            'provider' => 'organization_dashboard_accounts',
+            'table' => 'organization_dashboard_password_resets',
+            'expire' => 4320,
             'throttle' => 60,
         ],
     ],

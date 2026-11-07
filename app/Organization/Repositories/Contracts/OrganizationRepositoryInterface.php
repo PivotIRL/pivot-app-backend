@@ -25,6 +25,13 @@ interface OrganizationRepositoryInterface
      */
     public function connectedToUser(int $userId): Collection;
 
+    /**
+     * Organizations where the user holds an active ORG_OWNER, ORG_ADMIN or ORG_ANALYST role.
+     *
+     * @return Collection<int, Organization>
+     */
+    public function withAdministrativeRoleHeldBy(int $userId): Collection;
+
     /** @return Collection<int, \App\Organization\Models\OrganizationContract> */
     public function contractsFor(Organization $organization): Collection;
 

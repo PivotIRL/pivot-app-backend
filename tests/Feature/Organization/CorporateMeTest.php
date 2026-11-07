@@ -10,7 +10,6 @@ use App\Organization\Models\Organization;
 use App\Organization\Models\OrganizationMembership;
 use App\Organization\Services\OrganizationAccessService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Laravel\Sanctum\Sanctum;
 use Tests\Feature\Organization\Concerns\BuildsOrganizationActors;
 use Tests\TestCase;
 
@@ -23,27 +22,27 @@ class CorporateMeTest extends TestCase
         $this->getJson('/api/v1/corporate/me')->assertUnauthorized();
     }
 
-    public function test_a_user_with_no_organization_gets_an_empty_summary(): void
+    public function test_a_user_with_no_organization_has_no_dashboard_access(): void
     {
-        Sanctum::actingAs($this->makeUser());
+        $this->actingAsDashboard($this->makeUser());
 
         $this->getJson('/api/v1/corporate/me')
-            ->assertOk()
-            ->assertExactJson([
-                'pivot_role' => null,
-                'pivot_permissions' => [],
-                'can_access_dashboard' => false,
-                'organizations' => [],
-            ]);
+            ->assertForbidden()
+            ->assertExactJson(['message' => 'You do not have access to the Organization Dashboard.']);
     }
 
-    public function test_an_org_admin_gets_their_organization_id_role_and_permissions(): void
+    public function test_it_returns_the_user_account_organization_role_and_permissions(): void
     {
         $organization = Organization::factory()->create(['name' => 'Acme']);
-        Sanctum::actingAs($this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN));
+        $admin = $this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN);
+        $account = $this->actingAsDashboard($admin);
 
         $this->getJson('/api/v1/corporate/me')
             ->assertOk()
+            ->assertJsonPath('user.id', $admin->id)
+            ->assertJsonPath('user.email', $admin->email)
+            ->assertJsonPath('dashboard_account.id', $account->id)
+            ->assertJsonPath('dashboard_account.status', 'active')
             ->assertJsonPath('can_access_dashboard', true)
             ->assertJsonCount(1, 'organizations')
             ->assertJsonPath('organizations.0.organization.id', $organization->id)
@@ -51,44 +50,75 @@ class CorporateMeTest extends TestCase
             ->assertJsonPath('organizations.0.membership.status', 'active')
             ->assertJsonPath('organizations.0.roles', ['ORG_ADMIN'])
             ->assertJsonPath('organizations.0.can_access_dashboard', true)
-            ->assertJsonPath('organizations.0.permissions', $this->values(OrganizationRole::ORG_ADMIN->permissions()));
+            ->assertJsonPath('organizations.0.permissions', $this->values(OrganizationRole::ORG_ADMIN->permissions()))
+            ->assertJsonPath('memberships.0.organization_id', $organization->id)
+            ->assertJsonPath('memberships.0.organization_name', 'Acme')
+            ->assertJsonPath('memberships.0.status', 'active');
+    }
+
+    public function test_it_never_exposes_password_data(): void
+    {
+        $organization = Organization::factory()->create();
+        $this->actingAsDashboard($this->makeOrgUser($organization, OrganizationRole::ORG_OWNER));
+
+        $response = $this->getJson('/api/v1/corporate/me')->assertOk();
+
+        $response->assertJsonMissingPath('user.password');
+        $response->assertJsonMissingPath('dashboard_account.password');
+        $this->assertStringNotContainsString('$2y$', $response->getContent());
     }
 
     public function test_the_organization_id_it_returns_opens_the_dashboard_routes(): void
     {
         $organization = Organization::factory()->create();
-        Sanctum::actingAs($this->makeOrgUser($organization, OrganizationRole::ORG_OWNER));
+        $this->actingAsDashboard($this->makeOrgUser($organization, OrganizationRole::ORG_OWNER));
 
         $id = $this->getJson('/api/v1/corporate/me')->json('organizations.0.organization.id');
 
         $this->getJson("/api/v1/organizations/{$id}")->assertOk();
     }
 
-    public function test_an_organization_member_is_listed_without_dashboard_access(): void
+    public function test_it_returns_every_organization_the_user_can_access(): void
     {
-        $organization = Organization::factory()->create();
-        Sanctum::actingAs($this->makeOrgUser($organization, OrganizationRole::ORG_MEMBER));
+        $first = Organization::factory()->create(['name' => 'Alpha']);
+        $second = Organization::factory()->create(['name' => 'Beta']);
+        $user = $this->makeUser();
+        $this->grantRole($user, $first, OrganizationRole::ORG_OWNER);
+        $this->grantRole($user, $second, OrganizationRole::ORG_ANALYST);
+        $this->actingAsDashboard($user);
 
         $this->getJson('/api/v1/corporate/me')
             ->assertOk()
-            ->assertJsonPath('can_access_dashboard', false)
-            ->assertJsonPath('organizations.0.roles', ['ORG_MEMBER'])
-            ->assertJsonPath('organizations.0.permissions', [])
-            ->assertJsonPath('organizations.0.can_access_dashboard', false);
-
-        $this->getJson("/api/v1/organizations/{$organization->id}")->assertForbidden();
+            ->assertJsonCount(2, 'organizations')
+            ->assertJsonPath('organizations.0.organization.id', $first->id)
+            ->assertJsonPath('organizations.0.roles', ['ORG_OWNER'])
+            ->assertJsonPath('organizations.1.organization.id', $second->id)
+            ->assertJsonPath('organizations.1.roles', ['ORG_ANALYST']);
     }
 
-    public function test_a_member_with_no_role_assignment_is_listed(): void
+    public function test_organizations_the_user_cannot_access_are_not_listed_but_their_membership_is(): void
     {
-        $organization = Organization::factory()->create();
-        Sanctum::actingAs($this->makeMember($organization));
+        $authorized = Organization::factory()->create();
+        $employer = Organization::factory()->create(['name' => 'Employer']);
+        $user = $this->makeMember($employer);
+        $this->grantRole($user, $authorized, OrganizationRole::ORG_OWNER);
+        $this->actingAsDashboard($user);
 
         $this->getJson('/api/v1/corporate/me')
             ->assertOk()
-            ->assertJsonPath('organizations.0.organization.id', $organization->id)
-            ->assertJsonPath('organizations.0.roles', [])
-            ->assertJsonPath('organizations.0.can_access_dashboard', false);
+            ->assertJsonCount(1, 'organizations')
+            ->assertJsonPath('organizations.0.organization.id', $authorized->id)
+            ->assertJsonCount(1, 'memberships')
+            ->assertJsonPath('memberships.0.organization_name', 'Employer');
+    }
+
+    public function test_an_organization_member_has_no_dashboard_access(): void
+    {
+        $organization = Organization::factory()->create();
+        $this->actingAsDashboard($this->makeOrgUser($organization, OrganizationRole::ORG_MEMBER));
+
+        $this->getJson('/api/v1/corporate/me')->assertForbidden();
+        $this->getJson("/api/v1/organizations/{$organization->id}")->assertForbidden();
     }
 
     public function test_an_owner_assigned_before_joining_is_listed_with_no_membership(): void
@@ -96,50 +126,30 @@ class CorporateMeTest extends TestCase
         $organization = Organization::factory()->create();
         $owner = $this->makeUser();
         $this->grantRole($owner, $organization, OrganizationRole::ORG_OWNER);
-        Sanctum::actingAs($owner);
+        $this->actingAsDashboard($owner);
 
         $this->getJson('/api/v1/corporate/me')
             ->assertOk()
             ->assertJsonPath('organizations.0.membership', null)
             ->assertJsonPath('organizations.0.roles', ['ORG_OWNER'])
-            ->assertJsonPath('organizations.0.can_access_dashboard', true);
+            ->assertJsonPath('organizations.0.can_access_dashboard', true)
+            ->assertJsonPath('memberships', []);
 
         $this->getJson("/api/v1/organizations/{$organization->id}")->assertOk();
     }
 
-    public function test_a_suspended_organization_is_listed_but_gives_no_access(): void
-    {
-        $organization = Organization::factory()->suspended()->create();
-        Sanctum::actingAs($this->makeOrgUser($organization, OrganizationRole::ORG_OWNER));
-
-        $this->getJson('/api/v1/corporate/me')
-            ->assertOk()
-            ->assertJsonPath('can_access_dashboard', false)
-            ->assertJsonPath('organizations.0.organization.status', 'suspended')
-            ->assertJsonPath('organizations.0.permissions', [])
-            ->assertJsonPath('organizations.0.can_access_dashboard', false);
-
-        $this->getJson("/api/v1/organizations/{$organization->id}")->assertForbidden();
-    }
-
-    public function test_a_suspended_member_loses_their_roles_until_restored(): void
+    public function test_a_suspended_member_loses_access_until_restored(): void
     {
         $organization = Organization::factory()->create();
         $admin = $this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN);
         OrganizationMembership::where('user_id', $admin->id)->update(['status' => MembershipStatus::SUSPENDED]);
-        Sanctum::actingAs($admin);
+        $this->actingAsDashboard($admin);
 
-        $this->getJson('/api/v1/corporate/me')
-            ->assertOk()
-            ->assertJsonPath('organizations.0.membership.status', 'suspended')
-            ->assertJsonPath('organizations.0.roles', [])
-            ->assertJsonPath('organizations.0.permissions', [])
-            ->assertJsonPath('organizations.0.can_access_dashboard', false);
-
+        $this->getJson('/api/v1/corporate/me')->assertForbidden();
         $this->getJson("/api/v1/organizations/{$organization->id}")->assertForbidden();
     }
 
-    public function test_past_and_pending_connections_are_not_listed(): void
+    public function test_past_and_pending_connections_give_no_access(): void
     {
         $user = $this->makeUser();
 
@@ -158,12 +168,9 @@ class CorporateMeTest extends TestCase
         $this->grantRole($user, $removed, OrganizationRole::ORG_ADMIN);
         $removed->delete();
 
-        Sanctum::actingAs($user);
+        $this->actingAsDashboard($user);
 
-        $this->getJson('/api/v1/corporate/me')
-            ->assertOk()
-            ->assertJsonPath('organizations', [])
-            ->assertJsonPath('can_access_dashboard', false);
+        $this->getJson('/api/v1/corporate/me')->assertForbidden();
     }
 
     public function test_it_shows_only_a_summary_of_the_users_own_organization(): void
@@ -172,7 +179,7 @@ class CorporateMeTest extends TestCase
         Organization::factory()->create();
         $other = Organization::factory()->create();
         $this->makeOrgUser($other, OrganizationRole::ORG_OWNER);
-        Sanctum::actingAs($this->makeOrgUser($mine, OrganizationRole::ORG_ANALYST));
+        $this->actingAsDashboard($this->makeOrgUser($mine, OrganizationRole::ORG_ANALYST));
 
         $response = $this->getJson('/api/v1/corporate/me')
             ->assertOk()
@@ -190,7 +197,7 @@ class CorporateMeTest extends TestCase
         $organization = Organization::factory()->create();
         $user = $this->makeOrgUser($organization, OrganizationRole::ORG_ANALYST);
         $this->grantRole($user, $organization, OrganizationRole::ORG_OWNER);
-        Sanctum::actingAs($user);
+        $this->actingAsDashboard($user);
 
         $this->getJson('/api/v1/corporate/me')
             ->assertOk()
@@ -200,7 +207,7 @@ class CorporateMeTest extends TestCase
     public function test_pivot_staff_get_global_access_without_listing_every_organization(): void
     {
         Organization::factory()->count(2)->create();
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPPORT));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPPORT));
 
         $this->getJson('/api/v1/corporate/me')
             ->assertOk()

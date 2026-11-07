@@ -26,6 +26,7 @@ class RoleAssignmentService
         protected OrganizationMembershipRepositoryInterface $memberships,
         protected OrganizationAccessService $access,
         protected AuditLogger $audit,
+        protected OrganizationDashboardProvisioningService $dashboardProvisioning,
     ) {}
 
     public function list(Organization $organization, ?OrganizationRole $role = null, int $perPage = 25): LengthAwarePaginator
@@ -67,6 +68,10 @@ class RoleAssignmentService
                 metadata: ['user_id' => $user->id, 'role' => $role->value],
                 actor: $actor,
             );
+
+            if ($role->isAdministrative()) {
+                $this->dashboardProvisioning->provision($user);
+            }
 
             return $assignment->load('user:id,name,email');
         });

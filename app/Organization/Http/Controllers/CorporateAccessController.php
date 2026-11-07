@@ -8,7 +8,7 @@ use App\Organization\Services\CorporateAccessService;
 use Illuminate\Http\Request;
 
 /**
- * Tells a signed-in client which organizations the user belongs to and what they can do there.
+ * Tells the Organization Dashboard who is signed in, which organizations they can access and what they can do there.
  * It only ever describes the user's own access, so it needs no policy check.
  */
 class CorporateAccessController extends Controller
@@ -19,6 +19,10 @@ class CorporateAccessController extends Controller
 
     public function me(Request $request): CorporateAccessSummaryResource
     {
-        return CorporateAccessSummaryResource::make($this->access->summaryFor($request->user()));
+        $user = $request->user();
+
+        return CorporateAccessSummaryResource::make(
+            $this->access->summaryFor($user, $user->organizationDashboardAccount)
+        );
     }
 }

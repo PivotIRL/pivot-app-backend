@@ -13,7 +13,8 @@ use Illuminate\Support\Facades\DB;
 class PivotRoleService
 {
     public function __construct(
-        protected AuditLogger $audit
+        protected AuditLogger $audit,
+        protected OrganizationDashboardProvisioningService $dashboardProvisioning,
     ) {}
 
     public function grant(User $user, PivotRole $role, ?User $actor = null): User
@@ -29,6 +30,8 @@ class PivotRoleService
                 metadata: ['role' => $role->value, 'previous_role' => $previous?->value],
                 actor: $actor,
             );
+
+            $this->dashboardProvisioning->provision($user);
 
             return $user;
         });

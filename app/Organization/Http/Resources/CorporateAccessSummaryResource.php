@@ -5,6 +5,7 @@ namespace App\Organization\Http\Resources;
 use App\Organization\Data\CorporateOrganizationAccess;
 use App\Organization\Enums\OrganizationPermission;
 use App\Organization\Enums\OrganizationRole;
+use App\Organization\Models\OrganizationMembership;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,12 +17,25 @@ class CorporateAccessSummaryResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
+            'user' => [
+                'id' => $this->user->id,
+                'name' => $this->user->name,
+                'email' => $this->user->email,
+            ],
+            'dashboard_account' => OrganizationDashboardAccountResource::make($this->account)->resolve($request),
             'pivot_role' => $this->pivotRole?->value,
             'pivot_permissions' => $this->permissionValues($this->pivotPermissions),
             'can_access_dashboard' => $this->canAccessDashboard(),
             'organizations' => array_map(
                 fn (CorporateOrganizationAccess $access) => $this->organizationAccess($access, $request),
                 $this->organizations,
+            ),
+            'memberships' => array_map(
+                fn (OrganizationMembership $membership) => [
+                    ...OrganizationMembershipResource::make($membership)->resolve($request),
+                    'organization_name' => $membership->organization->name,
+                ],
+                $this->memberships,
             ),
         ];
     }

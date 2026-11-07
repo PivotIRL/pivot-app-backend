@@ -227,7 +227,7 @@ class CorporateOnboardingTest extends TestCase
     {
         $organization = Organization::factory()->create();
         $owner = $this->makeOrgUser($organization, OrganizationRole::ORG_OWNER);
-        Sanctum::actingAs($owner);
+        $this->actingAsDashboard($owner);
 
         $response = $this->postJson($this->url($organization, 'invitations'), ['email' => 'New.Admin@Acme.com', 'role' => 'ORG_ADMIN'])
             ->assertCreated()
@@ -282,7 +282,7 @@ class CorporateOnboardingTest extends TestCase
         $this->accept($invitee, $oldToken)->assertNotFound()->assertJsonPath('join_status', 'INVALID_INVITATION');
 
         $owner = $this->makeOrgUser($organization, OrganizationRole::ORG_OWNER);
-        Sanctum::actingAs($owner);
+        $this->actingAsDashboard($owner);
         $pending = OrganizationInvitation::where('status', 'pending')->sole();
         $this->deleteJson($this->url($organization, "invitations/{$pending->id}"))->assertOk()->assertJsonPath('status', 'revoked');
 
@@ -295,7 +295,7 @@ class CorporateOnboardingTest extends TestCase
     public function test_admin_cannot_invite_a_role_at_or_above_their_own(): void
     {
         $organization = Organization::factory()->create();
-        Sanctum::actingAs($this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN));
+        $this->actingAsDashboard($this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN));
 
         $this->postJson($this->url($organization, 'invitations'), ['email' => 'x@acme.com', 'role' => 'ORG_OWNER'])->assertForbidden();
         $this->postJson($this->url($organization, 'invitations'), ['email' => 'x@acme.com', 'role' => 'ORG_ADMIN'])->assertForbidden();
@@ -306,7 +306,7 @@ class CorporateOnboardingTest extends TestCase
     {
         $organization = Organization::factory()->create();
         $member = $this->makeMember($organization);
-        Sanctum::actingAs($this->makeOrgUser($organization, OrganizationRole::ORG_OWNER));
+        $this->actingAsDashboard($this->makeOrgUser($organization, OrganizationRole::ORG_OWNER));
 
         $this->postJson($this->url($organization, 'invitations'), ['email' => strtoupper($member->email)])->assertStatus(409);
     }
@@ -369,7 +369,7 @@ class CorporateOnboardingTest extends TestCase
 
     private function invite(Organization $organization, string $email): string
     {
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         return $this->postJson($this->url($organization, 'invitations'), ['email' => $email])
             ->assertCreated()

@@ -116,7 +116,7 @@ tests/Feature/Organization/
 - Pivot override (Super Admin) can act on anyone;
 - the target's rank uses their assigned roles even while they are suspended, so an admin cannot offboard a suspended owner.
 
-**Suspended members.** A member whose membership is `suspended` keeps their role rows, but `OrganizationAccessService::rolesIn()` returns no roles for them. They lose admin portal access until restored.
+**Inactive members.** A member whose membership is not `active` (for example `suspended` or `expired`) keeps their role rows, but `OrganizationAccessService::rolesIn()` returns no roles for them. They lose dashboard access until restored.
 
 ---
 
@@ -321,17 +321,18 @@ Each organization with a finding gets one `organization.seats_reconciled` audit 
 
 ## 9. API reference
 
-Employee (any signed-in user; middleware `auth:sanctum`, `organization.user`):
+Employee (any signed-in Mobile App user with a mobile token; middleware `auth:sanctum`, `organization.user`):
 
 | Method | Path | Body | Success |
 |---|---|---|---|
-| GET | `/api/v1/corporate/me` | — | 200 `CorporateAccessSummaryResource`: the user's own organizations, roles and permissions |
 | POST | `/api/v1/corporate/join/work-email` | — | 201 / 200 `CorporateJoinResource` |
 | POST | `/api/v1/corporate/join/code` | `code` | 201 / 200 |
 | POST | `/api/v1/corporate/invitations/accept` | `token` | 201 / 200 |
 | POST | `/api/v1/auth/register` | (unchanged) | 201 + `corporate_join` |
 
-Admin (tenant-scoped; middleware `auth:sanctum`, `organization.user`, `organization.tenant`; `{membership}` and `{invitation}` resolve only inside `{organization}`):
+Dashboard profile (dashboard token; middleware `auth:organization-dashboard`, `organization.dashboard`): `GET /api/v1/corporate/me` returns 200 `CorporateAccessSummaryResource`: the user's account and the organizations, roles and permissions they can use now.
+
+Admin (tenant-scoped, dashboard token; middleware `auth:organization-dashboard`, `organization.dashboard`, `organization.tenant`; `{membership}` and `{invitation}` resolve only inside `{organization}`):
 
 | Method | Path | Body | Permission |
 |---|---|---|---|
