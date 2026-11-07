@@ -2,10 +2,13 @@
 
 namespace App\Organization\Http\Requests;
 
+use App\Organization\Http\Requests\Concerns\HasOrganizationValidationMessages;
 use Illuminate\Foundation\Http\FormRequest;
 
 class RedeemOrganizationCodeRequest extends FormRequest
 {
+    use HasOrganizationValidationMessages;
+
     // Any signed-in user may try a code; the code itself is the authorization.
     public function authorize(): bool
     {

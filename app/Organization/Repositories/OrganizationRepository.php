@@ -33,6 +33,29 @@ class OrganizationRepository implements OrganizationRepositoryInterface
             ->paginate($perPage);
     }
 
+    public function connectedToUser(int $userId): Collection
+    {
+        return Organization::query()
+            ->where(function ($query) use ($userId) {
+                $query
+                    ->whereHas('roleAssignments', fn ($assignments) => $assignments
+                        ->where('user_id', $userId)
+                        ->whereNull('revoked_at'))
+                    ->orWhereHas('memberships', fn ($memberships) => $memberships
+                        ->where('user_id', $userId)
+                        ->whereIn('status', [
+                            MembershipStatus::ACTIVE,
+                            MembershipStatus::SUSPENDED,
+                            MembershipStatus::EXPIRED,
+                        ]));
+            })
+            ->with(['memberships' => fn ($memberships) => $memberships
+                ->where('user_id', $userId)
+                ->orderByDesc('id')])
+            ->orderBy('name')
+            ->get();
+    }
+
     public function contractsFor(Organization $organization): Collection
     {
         return OrganizationContract::query()

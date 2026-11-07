@@ -4,14 +4,25 @@ namespace App\Organization\Http\Requests;
 
 use App\Organization\Enums\OrganizationType;
 use App\Organization\Enums\Package;
+use App\Organization\Http\Requests\Concerns\HasOrganizationValidationMessages;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreOrganizationRequest extends FormRequest
 {
+    use HasOrganizationValidationMessages;
+
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function enumFields(): array
+    {
+        return [
+            'organization_type' => OrganizationType::class,
+            'package_code' => Package::class,
+        ];
     }
 
     public function rules(): array

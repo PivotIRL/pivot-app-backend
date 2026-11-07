@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Organization\Enums\OrganizationPermission;
 use App\Organization\Models\OrganizationMembership;
 use App\Organization\Services\OrganizationAccessService;
+use Illuminate\Auth\Access\Response;
 
 class OrganizationMembershipPolicy
 {
@@ -18,28 +19,28 @@ class OrganizationMembershipPolicy
      * role management applies: an admin cannot act on themselves or on someone with an equal or higher role.
      * Pivot override can act on anyone.
      */
-    public function manage(User $user, OrganizationMembership $membership): bool
+    public function manage(User $user, OrganizationMembership $membership): Response
     {
         $organization = $membership->organization;
 
         if (! $this->access->hasPermission($user, OrganizationPermission::MEMBERS_MANAGE, $organization)) {
-            return false;
+            return Response::deny(OrganizationPermission::MEMBERS_MANAGE->deniedMessage());
         }
 
         if ($this->access->hasPermission($user, OrganizationPermission::ORGANIZATION_OVERRIDE, $organization)) {
-            return true;
+            return Response::allow();
         }
 
         if ($user->id === $membership->user_id) {
-            return false;
+            return Response::deny('You cannot change your own membership.');
         }
 
         $targetRole = $this->access->highestAssignedRoleIn($membership->user, $organization);
 
-        if ($targetRole === null) {
-            return true;
+        if ($targetRole === null || $this->access->highestRoleIn($user, $organization)?->outranks($targetRole)) {
+            return Response::allow();
         }
 
-        return $this->access->highestRoleIn($user, $organization)?->outranks($targetRole) ?? false;
+        return Response::deny('You can only manage members with a lower role than yours.');
     }
 }

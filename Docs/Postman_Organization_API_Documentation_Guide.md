@@ -80,6 +80,7 @@ These are privileged actions. Confirm required staff permissions; do not present
 
 | Request name | Method and path | Request details to document |
 |---|---|---|
+| Get my corporate access | `GET /corporate/me` | No body. Any signed-in user. Returns `pivot_role`, `pivot_permissions`, `can_access_dashboard` and `organizations` (each with `organization`, `membership`, `roles`, `permissions` and `can_access_dashboard`). Call it after login to find the organization ID and decide whether to open the dashboard. |
 | Join with work email | `POST /corporate/join/work-email` | No body. Uses the signed-in user's existing account and email. |
 | Join with redemption code | `POST /corporate/join/code` | JSON: required `code` (string, maximum 64 characters). |
 | Accept invitation | `POST /corporate/invitations/accept` | JSON: required `token` (string, maximum 128 characters). |

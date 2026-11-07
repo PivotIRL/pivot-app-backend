@@ -2,10 +2,13 @@
 
 namespace App\Organization\Http\Requests;
 
+use App\Organization\Http\Requests\Concerns\HasOrganizationValidationMessages;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ListRedemptionCodesRequest extends FormRequest
 {
+    use HasOrganizationValidationMessages;
+
     public function authorize(): bool
     {
         return true;

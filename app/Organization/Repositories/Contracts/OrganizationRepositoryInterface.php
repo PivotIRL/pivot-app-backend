@@ -17,6 +17,14 @@ interface OrganizationRepositoryInterface
 
     public function paginate(int $perPage): LengthAwarePaginator;
 
+    /**
+     * Organizations where the user holds an active role, or an active, suspended or expired membership.
+     * Each one has `memberships` loaded with only this user's rows, newest first.
+     *
+     * @return Collection<int, Organization>
+     */
+    public function connectedToUser(int $userId): Collection;
+
     /** @return Collection<int, \App\Organization\Models\OrganizationContract> */
     public function contractsFor(Organization $organization): Collection;
 

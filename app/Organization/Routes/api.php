@@ -1,5 +1,6 @@
 <?php
 
+use App\Organization\Http\Controllers\CorporateAccessController;
 use App\Organization\Http\Controllers\CorporateJoinController;
 use App\Organization\Http\Controllers\OrganizationAuditLogController;
 use App\Organization\Http\Controllers\OrganizationControlController;
@@ -77,6 +78,9 @@ Route::middleware(['auth:sanctum', 'organization.user'])
     ->prefix('corporate')
     ->name('corporate.')
     ->group(function () {
+        // The signed-in user's own organizations, roles and permissions.
+        Route::get('me', [CorporateAccessController::class, 'me'])->name('me');
+
         Route::post('join/work-email', [CorporateJoinController::class, 'workEmail'])->name('join.work-email');
         Route::post('join/code', [CorporateJoinController::class, 'redeemCode'])->name('join.code');
         Route::post('invitations/accept', [CorporateJoinController::class, 'acceptInvitation'])->name('invitations.accept');

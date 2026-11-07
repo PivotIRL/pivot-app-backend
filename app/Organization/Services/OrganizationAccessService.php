@@ -86,4 +86,34 @@ class OrganizationAccessService
     {
         return $organization->status !== OrganizationStatus::SUSPENDED && ! $organization->trashed();
     }
+
+    /**
+     * Would the tenant middleware let this user into the organization's dashboard routes right now?
+     */
+    public function canUseDashboard(User $user, Organization $organization): bool
+    {
+        if ($user->isPivotStaff()) {
+            return true;
+        }
+
+        return $this->allowsDelegatedAdministration($organization) && $this->canEnterTenant($user, $organization);
+    }
+
+    /**
+     * Every permission hasPermission() would grant in this organization, without a query per permission.
+     *
+     * @return list<OrganizationPermission>
+     */
+    public function permissionsIn(User $user, Organization $organization): array
+    {
+        $roles = $this->allowsDelegatedAdministration($organization)
+            ? $this->rolesIn($user, $organization)
+            : collect();
+
+        return array_values(array_filter(
+            OrganizationPermission::cases(),
+            fn (OrganizationPermission $permission) => $user->pivot_role?->grants($permission)
+                || $roles->contains(fn (OrganizationRole $role) => $role->grants($permission)),
+        ));
+    }
 }

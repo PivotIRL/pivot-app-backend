@@ -325,6 +325,7 @@ Employee (any signed-in user; middleware `auth:sanctum`, `organization.user`):
 
 | Method | Path | Body | Success |
 |---|---|---|---|
+| GET | `/api/v1/corporate/me` | — | 200 `CorporateAccessSummaryResource`: the user's own organizations, roles and permissions |
 | POST | `/api/v1/corporate/join/work-email` | — | 201 / 200 `CorporateJoinResource` |
 | POST | `/api/v1/corporate/join/code` | `code` | 201 / 200 |
 | POST | `/api/v1/corporate/invitations/accept` | `token` | 201 / 200 |
