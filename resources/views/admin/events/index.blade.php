@@ -142,6 +142,7 @@
                 <div class="form-group">
                     <label class="form-label">Image (Optional)</label>
                     <input type="file" name="image" class="form-control" accept="image/*">
+                    <small class="text-muted">Maximum image size: 10 MB.</small>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Guests (Comma separated, Optional)</label>
@@ -196,6 +197,7 @@
                 <div class="form-group">
                     <label class="form-label">Image (Optional - Leave blank to keep current)</label>
                     <input type="file" name="image" class="form-control" accept="image/*">
+                    <small class="text-muted">Maximum image size: 10 MB.</small>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Guests (Comma separated, Optional)</label>
