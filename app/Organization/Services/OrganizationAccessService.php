@@ -3,11 +3,13 @@
 namespace App\Organization\Services;
 
 use App\Models\User;
+use App\Organization\Enums\MembershipStatus;
 use App\Organization\Enums\OrganizationPermission;
 use App\Organization\Enums\OrganizationRole;
 use App\Organization\Enums\OrganizationStatus;
 use App\Organization\Models\Organization;
 use App\Organization\Repositories\Contracts\OrganizationMembershipRepositoryInterface;
+use App\Organization\Repositories\Contracts\OrganizationRepositoryInterface;
 use App\Organization\Repositories\Contracts\OrganizationRoleAssignmentRepositoryInterface;
 use Illuminate\Support\Collection;
 
@@ -20,6 +22,7 @@ class OrganizationAccessService
     public function __construct(
         protected OrganizationRoleAssignmentRepositoryInterface $roleAssignments,
         protected OrganizationMembershipRepositoryInterface $memberships,
+        protected OrganizationRepositoryInterface $organizations,
     ) {}
 
     /**
@@ -27,8 +30,11 @@ class OrganizationAccessService
      */
     public function rolesIn(User $user, Organization $organization): Collection
     {
-        // A suspended member keeps their role assignments but cannot use them until restored.
-        if ($this->memberships->isSuspendedMember($organization->id, $user->id)) {
+        // A member who is not active keeps their role assignments but cannot use them until restored.
+        // A role with no membership row stays usable: the first-owner flow assigns ORG_OWNER before joining.
+        $membership = $this->memberships->findFor($organization->id, $user->id);
+
+        if ($membership && $membership->status !== MembershipStatus::ACTIVE) {
             return collect();
         }
 
@@ -80,10 +86,55 @@ class OrganizationAccessService
     }
 
     /**
-     * Suspended or removed organizations lose all delegated rights. Pivot staff keep theirs.
+     * Only active or pending organizations have delegated rights. Suspended, expired and removed
+     * organizations lose them until reactivated or renewed. Pivot staff keep theirs.
      */
     public function allowsDelegatedAdministration(Organization $organization): bool
     {
-        return $organization->status !== OrganizationStatus::SUSPENDED && ! $organization->trashed();
+        return in_array($organization->status, [OrganizationStatus::ACTIVE, OrganizationStatus::PENDING], true)
+            && ! $organization->trashed();
+    }
+
+    /**
+     * Would the tenant middleware let this user into the organization's dashboard routes right now?
+     */
+    public function canUseDashboard(User $user, Organization $organization): bool
+    {
+        if ($user->isPivotStaff()) {
+            return true;
+        }
+
+        return $this->allowsDelegatedAdministration($organization) && $this->canEnterTenant($user, $organization);
+    }
+
+    /**
+     * Can the user use the Organization Dashboard at all right now? Checked at login and on every request.
+     */
+    public function hasDashboardAccess(User $user): bool
+    {
+        if ($user->isPivotStaff()) {
+            return true;
+        }
+
+        return $this->organizations->withAdministrativeRoleHeldBy($user->id)
+            ->contains(fn (Organization $organization) => $this->canUseDashboard($user, $organization));
+    }
+
+    /**
+     * Every permission hasPermission() would grant in this organization, without a query per permission.
+     *
+     * @return list<OrganizationPermission>
+     */
+    public function permissionsIn(User $user, Organization $organization): array
+    {
+        $roles = $this->allowsDelegatedAdministration($organization)
+            ? $this->rolesIn($user, $organization)
+            : collect();
+
+        return array_values(array_filter(
+            OrganizationPermission::cases(),
+            fn (OrganizationPermission $permission) => $user->pivot_role?->grants($permission)
+                || $roles->contains(fn (OrganizationRole $role) => $role->grants($permission)),
+        ));
     }
 }

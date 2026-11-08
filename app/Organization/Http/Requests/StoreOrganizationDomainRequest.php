@@ -3,11 +3,14 @@
 namespace App\Organization\Http\Requests;
 
 use App\Organization\Enums\OrganizationDomainStatus;
+use App\Organization\Http\Requests\Concerns\HasOrganizationValidationMessages;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreOrganizationDomainRequest extends FormRequest
 {
+    use HasOrganizationValidationMessages;
+
     protected function prepareForValidation(): void
     {
         if (is_string($this->input('domain'))) {

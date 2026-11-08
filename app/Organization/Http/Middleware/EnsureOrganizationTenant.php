@@ -17,7 +17,8 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
  * Tenant isolation for every /organizations/{organization}/... route.
  *
  * - Pivot staff may enter any organization (action-level policies still apply).
- * - Everyone else needs an active administrative role in that exact organization.
+ * - Everyone else needs a usable administrative role in that exact organization (active or no membership),
+ *   and the organization must be active or pending.
  * - A request may not point at another organization through an organization_id input.
  */
 class EnsureOrganizationTenant
@@ -54,8 +55,10 @@ class EnsureOrganizationTenant
             throw new AccessDeniedHttpException('You do not have access to this organization.');
         }
 
-        if ($organization->status === OrganizationStatus::SUSPENDED) {
-            throw new AccessDeniedHttpException('This organization is suspended.');
+        if (! $this->access->allowsDelegatedAdministration($organization)) {
+            throw new AccessDeniedHttpException($organization->status === OrganizationStatus::SUSPENDED
+                ? 'This organization is suspended.'
+                : "This organization's contract has expired.");
         }
 
         return $next($request);

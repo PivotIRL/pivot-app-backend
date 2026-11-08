@@ -27,7 +27,7 @@ class OrganizationB3Test extends TestCase
 
     public function test_pivot_super_admin_can_create_custom_organization_with_contract_and_entitlements(): void
     {
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         $this->postJson('/api/v1/organizations', [
             'name' => 'Northwind Research',
@@ -84,7 +84,7 @@ class OrganizationB3Test extends TestCase
     public function test_contract_renewal_keeps_history_and_audits_the_new_contract(): void
     {
         $organization = Organization::factory()->create();
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         $this->postJson("/api/v1/organizations/{$organization->id}/contracts/renew", [
             'package_code' => 'PREMIUM',
@@ -113,7 +113,7 @@ class OrganizationB3Test extends TestCase
     {
         $organization = Organization::factory()->create();
         $owner = $this->makeOrgUser($organization, OrganizationRole::ORG_OWNER);
-        Sanctum::actingAs($owner);
+        $this->actingAsDashboard($owner);
 
         $this->postJson($this->organizationUrl($organization, 'domains'), [
             'domain' => '  Example.COM  ',
@@ -152,7 +152,7 @@ class OrganizationB3Test extends TestCase
     {
         $organization = Organization::factory()->create();
         $owner = $this->makeOrgUser($organization, OrganizationRole::ORG_OWNER);
-        Sanctum::actingAs($owner);
+        $this->actingAsDashboard($owner);
 
         $response = $this->postJson($this->organizationUrl($organization, 'redemption-codes'), [
             'name' => 'Pilot team',
@@ -213,7 +213,7 @@ class OrganizationB3Test extends TestCase
     public function test_renewing_a_suspended_organization_keeps_it_suspended(): void
     {
         $organization = Organization::factory()->suspended()->create();
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         $this->postJson("/api/v1/organizations/{$organization->id}/contracts/renew", [
             'package_code' => 'STANDARD',
@@ -232,7 +232,7 @@ class OrganizationB3Test extends TestCase
 
     public function test_pending_organization_is_activated_when_its_contract_starts(): void
     {
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
         $id = $this->postJson('/api/v1/organizations', [
             'name' => 'Future Start',
             'slug' => 'future-start',
@@ -277,12 +277,12 @@ class OrganizationB3Test extends TestCase
         $squatter = Organization::factory()->create();
         $owner = Organization::factory()->create();
 
-        Sanctum::actingAs($this->makeOrgUser($squatter, OrganizationRole::ORG_ADMIN));
+        $this->actingAsDashboard($this->makeOrgUser($squatter, OrganizationRole::ORG_ADMIN));
         $this->postJson($this->organizationUrl($squatter, 'domains'), ['domain' => 'acme.com'])->assertCreated();
         $this->postJson($this->organizationUrl($squatter, 'domains'), ['domain' => 'acme.com'])
             ->assertStatus(422)->assertJsonValidationErrors('domain');
 
-        Sanctum::actingAs($this->makeOrgUser($owner, OrganizationRole::ORG_ADMIN));
+        $this->actingAsDashboard($this->makeOrgUser($owner, OrganizationRole::ORG_ADMIN));
         $domainId = $this->postJson($this->organizationUrl($owner, 'domains'), ['domain' => 'acme.com'])
             ->assertCreated()->json('id');
 
@@ -301,7 +301,7 @@ class OrganizationB3Test extends TestCase
         ]);
 
         // Once verified, the domain is taken for everyone else.
-        Sanctum::actingAs($this->makeOrgUser($squatter, OrganizationRole::ORG_ADMIN));
+        $this->actingAsDashboard($this->makeOrgUser($squatter, OrganizationRole::ORG_ADMIN));
         $this->postJson($this->organizationUrl($squatter, 'domains'), ['domain' => 'acme.com'])
             ->assertStatus(422)->assertJsonValidationErrors('domain');
     }
@@ -323,13 +323,13 @@ class OrganizationB3Test extends TestCase
             'verified_at' => null,
         ]);
 
-        Sanctum::actingAs($this->makeOrgUser($second, OrganizationRole::ORG_ADMIN));
+        $this->actingAsDashboard($this->makeOrgUser($second, OrganizationRole::ORG_ADMIN));
         $this->postJson($this->organizationUrl($second, "domains/{$pending->id}/verify"))->assertStatus(409);
     }
 
     public function test_duplicate_entitlement_keys_are_rejected_by_validation(): void
     {
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         $this->postJson('/api/v1/organizations', [
             'name' => 'Duplicate Keys',

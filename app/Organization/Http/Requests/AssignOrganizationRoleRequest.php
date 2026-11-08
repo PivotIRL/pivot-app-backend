@@ -4,15 +4,25 @@ namespace App\Organization\Http\Requests;
 
 use App\Models\User;
 use App\Organization\Enums\OrganizationRole;
+use App\Organization\Http\Requests\Concerns\HasOrganizationValidationMessages;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class AssignOrganizationRoleRequest extends FormRequest
 {
+    use HasOrganizationValidationMessages;
+
     // Authorization depends on the requested role, so it runs in the controller after validation.
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function enumFields(): array
+    {
+        return [
+            'role' => OrganizationRole::class,
+        ];
     }
 
     public function rules(): array
@@ -20,14 +30,6 @@ class AssignOrganizationRoleRequest extends FormRequest
         return [
             'user_id' => ['required', 'integer', 'exists:users,id'],
             'role' => ['required', Rule::enum(OrganizationRole::class)],
-        ];
-    }
-
-    public function messages(): array
-    {
-        return [
-            'user_id.exists' => 'The selected user does not exist.',
-            'role.enum' => 'The role must be one of: '.implode(', ', array_column(OrganizationRole::cases(), 'value')).'.',
         ];
     }
 

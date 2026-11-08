@@ -30,8 +30,6 @@ interface OrganizationMembershipRepositoryInterface
 
     public function update(OrganizationMembership $membership, array $data): OrganizationMembership;
 
-    public function isSuspendedMember(string $organizationId, int $userId): bool;
-
     /**
      * Expire every active membership of the organization. Returns the number expired.
      */

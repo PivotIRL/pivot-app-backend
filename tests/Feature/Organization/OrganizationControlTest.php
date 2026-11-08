@@ -27,7 +27,7 @@ class OrganizationControlTest extends TestCase
 
     public function test_super_admin_can_suspend_reactivate_and_remove_any_organization(): void
     {
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         $this->postJson($this->url('suspend'), ['reason' => 'Unpaid invoice'])
             ->assertOk()
@@ -53,7 +53,7 @@ class OrganizationControlTest extends TestCase
 
     public function test_suspending_twice_or_reactivating_an_active_organization_conflicts(): void
     {
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         $this->postJson($this->url('reactivate'), ['reason' => 'x'])->assertStatus(409);
         $this->postJson($this->url('suspend'), ['reason' => 'x'])->assertOk();
@@ -68,7 +68,7 @@ class OrganizationControlTest extends TestCase
         ];
 
         foreach ($actors as $actor) {
-            Sanctum::actingAs($actor);
+            $this->actingAsDashboard($actor);
 
             $this->postJson($this->url('suspend'), ['reason' => 'x'])->assertForbidden();
             $this->deleteJson($this->url(), ['reason' => 'x'])->assertForbidden();
@@ -79,7 +79,7 @@ class OrganizationControlTest extends TestCase
 
     public function test_reason_is_required(): void
     {
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         $this->postJson($this->url('suspend'))->assertStatus(422)->assertJsonValidationErrors('reason');
     }

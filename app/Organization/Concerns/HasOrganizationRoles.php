@@ -3,9 +3,11 @@
 namespace App\Organization\Concerns;
 
 use App\Organization\Enums\PivotRole;
+use App\Organization\Models\OrganizationDashboardAccount;
 use App\Organization\Models\OrganizationMembership;
 use App\Organization\Models\OrganizationRoleAssignment;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Adds global Pivot staff roles and organization relations to the User model.
@@ -26,6 +28,11 @@ trait HasOrganizationRoles
     public function organizationMemberships(): HasMany
     {
         return $this->hasMany(OrganizationMembership::class);
+    }
+
+    public function organizationDashboardAccount(): HasOne
+    {
+        return $this->hasOne(OrganizationDashboardAccount::class);
     }
 
     public function isPivotStaff(): bool

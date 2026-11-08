@@ -32,7 +32,7 @@ class MembershipLifecycleTest extends TestCase
         $organization = Organization::factory()->create(['seat_limit' => 1]);
         $member = $this->makeMember($organization);
         $membership = $this->membershipOf($member);
-        Sanctum::actingAs($this->makeOrgUser($organization, OrganizationRole::ORG_OWNER));
+        $this->actingAsDashboard($this->makeOrgUser($organization, OrganizationRole::ORG_OWNER));
         $organization->update(['seat_limit' => 2]); // the owner's own membership also holds a seat
 
         $this->postJson($this->url($organization, "members/{$membership->id}/suspend"), ['reason' => 'Leave of absence'])
@@ -58,7 +58,7 @@ class MembershipLifecycleTest extends TestCase
         $organization = Organization::factory()->create();
         $analyst = $this->makeOrgUser($organization, OrganizationRole::ORG_ANALYST);
         $membership = $this->membershipOf($analyst);
-        Sanctum::actingAs($this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN));
+        $this->actingAsDashboard($this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN));
 
         $this->deleteJson($this->url($organization, "members/{$membership->id}"), ['reason' => 'Left the company'])
             ->assertOk()
@@ -102,7 +102,7 @@ class MembershipLifecycleTest extends TestCase
         $admin = $this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN);
         $this->membershipOf($admin)->update(['status' => MembershipStatus::SUSPENDED]);
 
-        Sanctum::actingAs($admin);
+        $this->actingAsDashboard($admin);
         $this->getJson($this->url($organization, 'members'))->assertForbidden();
     }
 
@@ -112,7 +112,7 @@ class MembershipLifecycleTest extends TestCase
         $owner = $this->makeOrgUser($organization, OrganizationRole::ORG_OWNER);
         $otherAdmin = $this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN);
         $admin = $this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN);
-        Sanctum::actingAs($admin);
+        $this->actingAsDashboard($admin);
 
         foreach ([$owner, $otherAdmin, $admin] as $target) {
             $this->deleteJson($this->url($organization, "members/{$this->membershipOf($target)->id}"), ['reason' => 'x'])
@@ -124,7 +124,7 @@ class MembershipLifecycleTest extends TestCase
         $this->deleteJson($this->url($organization, "members/{$this->membershipOf($owner)->id}"), ['reason' => 'x'])->assertForbidden();
 
         // Pivot Super Admin can act on anyone.
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
         $this->deleteJson($this->url($organization, "members/{$this->membershipOf($otherAdmin)->id}"), ['reason' => 'x'])->assertOk();
     }
 
@@ -133,7 +133,7 @@ class MembershipLifecycleTest extends TestCase
         $organizationA = Organization::factory()->create();
         $organizationB = Organization::factory()->create();
         $foreign = $this->membershipOf($this->makeMember($organizationB));
-        Sanctum::actingAs($this->makeOrgUser($organizationA, OrganizationRole::ORG_OWNER));
+        $this->actingAsDashboard($this->makeOrgUser($organizationA, OrganizationRole::ORG_OWNER));
 
         $this->deleteJson($this->url($organizationA, "members/{$foreign->id}"), ['reason' => 'x'])->assertNotFound();
         $this->getJson($this->url($organizationB, 'members'))->assertForbidden();
@@ -144,7 +144,7 @@ class MembershipLifecycleTest extends TestCase
     {
         $organization = Organization::factory()->create();
         $membership = $this->membershipOf($this->makeMember($organization));
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         $this->postJson($this->url($organization, "members/{$membership->id}/restore"))->assertStatus(409);
         $this->deleteJson($this->url($organization, "members/{$membership->id}"), ['reason' => 'x'])->assertOk();
@@ -156,7 +156,7 @@ class MembershipLifecycleTest extends TestCase
     {
         $organization = Organization::factory()->create();
         $member = $this->makeMember($organization);
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
         $this->deleteJson($this->url($organization, ''), ['reason' => 'Contract cancelled'])->assertOk();
 
@@ -206,7 +206,7 @@ class MembershipLifecycleTest extends TestCase
         $organization = Organization::factory()->create();
         $this->makeMember($organization);
         OrganizationMembership::factory()->deactivated()->create(['organization_id' => $organization->id]);
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPPORT));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPPORT));
 
         $this->getJson($this->url($organization, 'members?status=deactivated'))
             ->assertOk()

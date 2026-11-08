@@ -36,6 +36,7 @@ class CorporateOnboardingService
         protected OrganizationMembershipRepositoryInterface $memberships,
         protected OrganizationRoleAssignmentRepositoryInterface $roleAssignments,
         protected AuditLogger $audit,
+        protected OrganizationDashboardProvisioningService $dashboardProvisioning,
     ) {}
 
     /**
@@ -232,5 +233,7 @@ class CorporateOnboardingService
             ],
             actor: $user,
         );
+
+        $this->dashboardProvisioning->provision($user);
     }
 }

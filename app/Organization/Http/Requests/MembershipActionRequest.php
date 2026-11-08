@@ -2,6 +2,7 @@
 
 namespace App\Organization\Http\Requests;
 
+use App\Organization\Http\Requests\Concerns\HasOrganizationValidationMessages;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -9,6 +10,8 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class MembershipActionRequest extends FormRequest
 {
+    use HasOrganizationValidationMessages;
+
     // Authorization is handled by OrganizationMembershipPolicy in the controller.
     public function authorize(): bool
     {
@@ -19,13 +22,6 @@ class MembershipActionRequest extends FormRequest
     {
         return [
             'reason' => ['required', 'string', 'max:255'],
-        ];
-    }
-
-    public function messages(): array
-    {
-        return [
-            'reason.required' => 'A reason is required for this action.',
         ];
     }
 

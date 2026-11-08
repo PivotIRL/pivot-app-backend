@@ -30,7 +30,7 @@ class TenantIsolationTest extends TestCase
     public function test_admin_of_organization_a_cannot_read_organization_b(): void
     {
         $adminA = $this->makeOrgUser($this->orgA, OrganizationRole::ORG_ADMIN);
-        Sanctum::actingAs($adminA);
+        $this->actingAsDashboard($adminA);
 
         $this->getJson($this->url($this->orgB, 'roles'))->assertForbidden();
         $this->getJson($this->url($this->orgB, 'audit-logs'))->assertForbidden();
@@ -46,7 +46,7 @@ class TenantIsolationTest extends TestCase
 
     public function test_admin_can_read_own_organization(): void
     {
-        Sanctum::actingAs($this->makeOrgUser($this->orgA, OrganizationRole::ORG_ADMIN));
+        $this->actingAsDashboard($this->makeOrgUser($this->orgA, OrganizationRole::ORG_ADMIN));
 
         $this->getJson($this->url($this->orgA, 'roles'))->assertOk();
         $this->getJson($this->url($this->orgA, 'audit-logs'))->assertOk();
@@ -56,7 +56,7 @@ class TenantIsolationTest extends TestCase
     {
         $adminA = $this->makeOrgUser($this->orgA, OrganizationRole::ORG_ADMIN);
         $memberB = $this->makeMember($this->orgB);
-        Sanctum::actingAs($adminA);
+        $this->actingAsDashboard($adminA);
 
         $this->postJson($this->url($this->orgB, 'roles'), [
             'user_id' => $memberB->id,
@@ -71,7 +71,7 @@ class TenantIsolationTest extends TestCase
         $ownerA = $this->makeOrgUser($this->orgA, OrganizationRole::ORG_OWNER);
         $analystB = $this->makeOrgUser($this->orgB, OrganizationRole::ORG_ANALYST);
         $assignmentB = $analystB->organizationRoleAssignments()->first();
-        Sanctum::actingAs($ownerA);
+        $this->actingAsDashboard($ownerA);
 
         $this->deleteJson($this->url($this->orgA, "roles/{$assignmentB->id}"))->assertNotFound();
 
@@ -80,7 +80,7 @@ class TenantIsolationTest extends TestCase
 
     public function test_organization_id_input_must_match_the_route_organization(): void
     {
-        Sanctum::actingAs($this->makeOrgUser($this->orgA, OrganizationRole::ORG_ADMIN));
+        $this->actingAsDashboard($this->makeOrgUser($this->orgA, OrganizationRole::ORG_ADMIN));
 
         $this->getJson($this->url($this->orgA, 'roles').'?organization_id='.$this->orgB->id)
             ->assertForbidden()
@@ -89,14 +89,14 @@ class TenantIsolationTest extends TestCase
 
     public function test_member_without_admin_role_cannot_enter_admin_scope(): void
     {
-        Sanctum::actingAs($this->makeOrgUser($this->orgA, OrganizationRole::ORG_MEMBER));
+        $this->actingAsDashboard($this->makeOrgUser($this->orgA, OrganizationRole::ORG_MEMBER));
 
         $this->getJson($this->url($this->orgA, 'roles'))->assertForbidden();
     }
 
     public function test_analyst_can_enter_but_cannot_view_roles_or_audit_logs(): void
     {
-        Sanctum::actingAs($this->makeOrgUser($this->orgA, OrganizationRole::ORG_ANALYST));
+        $this->actingAsDashboard($this->makeOrgUser($this->orgA, OrganizationRole::ORG_ANALYST));
 
         $this->getJson($this->url($this->orgA, 'roles'))->assertForbidden();
         $this->getJson($this->url($this->orgA, 'audit-logs'))->assertForbidden();
@@ -107,31 +107,49 @@ class TenantIsolationTest extends TestCase
         $suspended = Organization::factory()->suspended()->create();
         $owner = $this->makeOrgUser($suspended, OrganizationRole::ORG_OWNER);
 
-        Sanctum::actingAs($owner);
+        // Their only organization is suspended, so they have no dashboard access at all.
+        $this->actingAsDashboard($owner);
+        $this->getJson($this->url($suspended, 'roles'))
+            ->assertForbidden()
+            ->assertJson(['message' => 'You do not have access to the Organization Dashboard.']);
+
+        // With access elsewhere, tenant isolation explains why this organization is closed.
+        $this->grantRole($owner, $this->orgA, OrganizationRole::ORG_OWNER);
         $this->getJson($this->url($suspended, 'roles'))
             ->assertForbidden()
             ->assertJson(['message' => 'This organization is suspended.']);
 
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
         $this->getJson($this->url($suspended, 'roles'))->assertOk();
     }
 
     public function test_pivot_staff_can_enter_any_organization(): void
     {
-        Sanctum::actingAs($this->makeStaff(PivotRole::PIVOT_SUPPORT));
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPPORT));
 
         $this->getJson($this->url($this->orgA, 'roles'))->assertOk();
         $this->getJson($this->url($this->orgB, 'audit-logs'))->assertOk();
     }
 
-    public function test_token_from_the_real_login_endpoint_is_accepted(): void
+    public function test_token_from_the_mobile_login_endpoint_is_rejected(): void
     {
-        // /auth/login issues tokens on App\Models\Users, not App\Models\User.
         $admin = $this->makeOrgUser($this->orgA, OrganizationRole::ORG_ADMIN);
 
         $token = $this->postJson('/api/v1/auth/login', ['email' => $admin->email, 'password' => 'password'])
             ->assertOk()
             ->json('token');
+
+        $this->withToken($token)->getJson($this->url($this->orgA, 'roles'))->assertUnauthorized();
+    }
+
+    public function test_token_from_the_dashboard_login_endpoint_stays_inside_its_own_tenant(): void
+    {
+        $admin = $this->makeOrgUser($this->orgA, OrganizationRole::ORG_ADMIN);
+        $this->makeDashboardAccount($admin);
+
+        $token = $this->postJson('/api/v1/organization/auth/login', ['email' => $admin->email, 'password' => $this->dashboardPassword])
+            ->assertOk()
+            ->json('access_token');
 
         $this->withToken($token)->getJson($this->url($this->orgA, 'roles'))->assertOk();
         $this->withToken($token)->getJson($this->url($this->orgB, 'roles'))->assertForbidden();
@@ -147,13 +165,13 @@ class TenantIsolationTest extends TestCase
         $ownerA = $this->makeOrgUser($this->orgA, OrganizationRole::ORG_OWNER);
         $ownerB = $this->makeOrgUser($this->orgB, OrganizationRole::ORG_OWNER);
 
-        Sanctum::actingAs($ownerB);
+        $this->actingAsDashboard($ownerB);
         $this->postJson($this->url($this->orgB, 'roles'), [
             'user_id' => $this->makeMember($this->orgB)->id,
             'role' => OrganizationRole::ORG_ANALYST->value,
         ])->assertCreated();
 
-        Sanctum::actingAs($ownerA);
+        $this->actingAsDashboard($ownerA);
         $this->getJson($this->url($this->orgA, 'audit-logs'))
             ->assertOk()
             ->assertJsonCount(0, 'data');

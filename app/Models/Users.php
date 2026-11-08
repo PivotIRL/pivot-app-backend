@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
+use App\Contracts\MobileApiTokenable;
 use Illuminate\Database\Eloquent\Model;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Notifications\Notifiable;
 
-class Users extends Model
+class Users extends Model implements MobileApiTokenable
 {
     use HasApiTokens, Notifiable;
 

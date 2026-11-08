@@ -3,11 +3,14 @@
 namespace App\Organization\Http\Requests;
 
 use App\Organization\Enums\AuditAction;
+use App\Organization\Http\Requests\Concerns\HasOrganizationValidationMessages;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class ListOrganizationAuditLogsRequest extends FormRequest
 {
+    use HasOrganizationValidationMessages;
+
     // Authorization is handled by OrganizationPolicy::viewAuditLogs in the controller.
     public function authorize(): bool
     {

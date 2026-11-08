@@ -2,10 +2,13 @@
 
 namespace App\Organization\Http\Requests;
 
+use App\Organization\Http\Requests\Concerns\HasOrganizationValidationMessages;
 use Illuminate\Foundation\Http\FormRequest;
 
 class AcceptOrganizationInvitationRequest extends FormRequest
 {
+    use HasOrganizationValidationMessages;
+
     // Any signed-in user may try; the token and the invited email are checked by the service.
     public function authorize(): bool
     {

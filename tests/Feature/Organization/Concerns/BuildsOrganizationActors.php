@@ -6,11 +6,44 @@ use App\Models\User;
 use App\Organization\Enums\OrganizationRole;
 use App\Organization\Enums\PivotRole;
 use App\Organization\Models\Organization;
+use App\Organization\Models\OrganizationDashboardAccount;
 use App\Organization\Models\OrganizationMembership;
 use App\Organization\Models\OrganizationRoleAssignment;
+use Illuminate\Support\Str;
+use Laravel\Sanctum\Sanctum;
 
 trait BuildsOrganizationActors
 {
+    protected string $dashboardPassword = 'Dashboard-Pass-123!';
+
+    /**
+     * Sends the next requests as this user with a dashboard token. This skips the guard, so
+     * token isolation itself is tested with real tokens in OrganizationDashboardAuthTest.
+     */
+    protected function actingAsDashboard(User $user): OrganizationDashboardAccount
+    {
+        $account = OrganizationDashboardAccount::query()->where('user_id', $user->id)->first()
+            ?? $this->makeDashboardAccount($user);
+
+        Sanctum::actingAs($account, [OrganizationDashboardAccount::TOKEN_ABILITY], OrganizationDashboardAccount::GUARD);
+
+        return $account;
+    }
+
+    protected function makeDashboardAccount(User $user, bool $withPassword = true): OrganizationDashboardAccount
+    {
+        $account = new OrganizationDashboardAccount;
+
+        $account->forceFill([
+            'user_id' => $user->id,
+            'email' => Str::lower($user->email),
+            'password' => $withPassword ? $this->dashboardPassword : null,
+            'password_set_at' => $withPassword ? now() : null,
+        ])->save();
+
+        return $account;
+    }
+
     /**
      * The stock UserFactory sets `email_verified_at`, a column the users
      * migration in this repo never added, so build users directly instead.

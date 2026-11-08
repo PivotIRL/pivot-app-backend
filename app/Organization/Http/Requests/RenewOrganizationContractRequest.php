@@ -3,14 +3,24 @@
 namespace App\Organization\Http\Requests;
 
 use App\Organization\Enums\Package;
+use App\Organization\Http\Requests\Concerns\HasOrganizationValidationMessages;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class RenewOrganizationContractRequest extends FormRequest
 {
+    use HasOrganizationValidationMessages;
+
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function enumFields(): array
+    {
+        return [
+            'package_code' => Package::class,
+        ];
     }
 
     public function rules(): array
