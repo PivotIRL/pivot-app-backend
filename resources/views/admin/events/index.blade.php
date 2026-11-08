@@ -61,7 +61,7 @@
                 <tr>
                     <td>
                         @if($event->image)
-                            <img src="{{ Storage::url($event->image) }}" alt="{{ $event->title }}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
+                            <img src="{{ Storage::disk('public')->url($event->image) }}" alt="{{ $event->title }}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
                         @else
                             <div style="width: 60px; height: 60px; border-radius: 8px; background: var(--bg-main); display: flex; align-items: center; justify-content: center; color: var(--text-muted);">
                                 <i class="fa-solid fa-calendar-days fa-2x"></i>
