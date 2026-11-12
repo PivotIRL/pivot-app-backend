@@ -55,7 +55,7 @@
                     <td><span class="badge badge-info">{{ $activity->tier ?? 'Standard' }}</span></td>
                     <td>{{ $activity->energy_level ?? 'N/A' }}</td>
                     <td style="text-align: right;">
-                        <a href="{{ route('admin.activities.show', $activity->id) }}" class="btn btn-secondary btn-sm"><i class="fa-solid fa-eye"></i> View</a>
+                        <a href="{{ route('admin.activities.show', ['activity' => $activity->id, 'from_category' => $category->id]) }}" class="btn btn-secondary btn-sm"><i class="fa-solid fa-eye"></i> View</a>
                     </td>
                 </tr>
                 @empty
