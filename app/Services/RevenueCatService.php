@@ -87,6 +87,23 @@ class RevenueCatService
         }
     }
 
+    /** Receipt lookup only: a receipt does not establish a legacy pack's unspent balance. */
+    public function fetchCustomerPackPurchases(string $customerId, string $environment): array
+    {
+        if ($this->apiKey === '' || $this->projectId === '' || ! in_array($environment, ['production', 'sandbox'], true)) {
+            return ['ok' => false, 'items' => []];
+        }
+        try {
+            $result = $this->fetchCustomerCollection($customerId, 'purchases', $environment);
+            if (! $result['ok']) return $result;
+            $products = [];
+            return ['ok' => true, 'items' => $this->resolveMembershipStoreProducts($result['items'], $products)];
+        } catch (Throwable $exception) {
+            Log::warning('Legacy pack receipt lookup failed.', ['exception' => $exception::class]);
+            return ['ok' => false, 'items' => []];
+        }
+    }
+
     private function resolveMembershipStoreProducts(array $items, array &$products): array
     {
         foreach ($items as &$item) {

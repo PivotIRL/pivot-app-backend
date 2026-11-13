@@ -704,7 +704,7 @@ class OrganizationDashboardAuthTest extends TestCase
 
         $token = PersonalAccessToken::findToken($response->json('token'));
         $this->assertSame('mobile', $token->name);
-        $this->assertSame(Users::class, $token->tokenable_type);
+        $this->assertSame(User::class, $token->tokenable_type);
     }
 
     public function test_mobile_tokens_from_both_owner_models_still_work_on_mobile_endpoints(): void
@@ -713,7 +713,8 @@ class OrganizationDashboardAuthTest extends TestCase
         $emailLoginToken = $this->mobileLogin($user)->assertOk()->json('token');
         $socialLoginToken = $user->createToken('mobile')->plainTextToken;
 
-        foreach ([$emailLoginToken, $socialLoginToken] as $token) {
+        $legacyToken = Users::findOrFail($user->id)->createToken('mobile')->plainTextToken;
+        foreach ([$emailLoginToken, $socialLoginToken, $legacyToken] as $token) {
             $this->bearer($token)->getJson('/api/v1/user/current-user')->assertOk();
             $this->bearer($token)->getJson('/api/v1/profile/me')->assertSuccessful();
         }
@@ -743,7 +744,13 @@ class OrganizationDashboardAuthTest extends TestCase
 
     // Mobile joining flows, with real mobile tokens
 
-    public function test_work_email_join_works_with_a_real_mobile_token(): void
+    public static function mobileTokenOwners(): array
+    {
+        return ['canonical' => [User::class], 'legacy' => [Users::class]];
+    }
+
+    #[DataProvider('mobileTokenOwners')]
+    public function test_work_email_join_works_with_a_real_mobile_token(string $owner): void
     {
         $organization = Organization::factory()->create();
         OrganizationDomain::factory()->create([
@@ -753,7 +760,9 @@ class OrganizationDashboardAuthTest extends TestCase
         ]);
         $user = $this->makeUser();
         $user->forceFill(['email' => 'alice@acme.com'])->save();
-        $token = $this->mobileLogin($user)->assertOk()->json('token');
+        $token = $owner === Users::class
+            ? Users::findOrFail($user->id)->createToken('mobile')->plainTextToken
+            : $this->mobileLogin($user)->assertOk()->json('token');
 
         $this->bearer($token)->postJson('/api/v1/corporate/join/work-email')
             ->assertCreated()

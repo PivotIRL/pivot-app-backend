@@ -7,7 +7,8 @@ namespace App\Contracts;
  *
  * The `sanctum` guard rejects any other token owner, so a new kind of token (such as an
  * Organization Dashboard token) can never reach the mobile routes by default.
- * Mobile tokens are owned by App\Models\Users (email login) and App\Models\User (Google, Apple).
+ * New mobile tokens belong to App\Models\User. Historical App\Models\Users tokens
+ * remain valid through the compatibility subclass.
  */
 interface MobileApiTokenable
 {

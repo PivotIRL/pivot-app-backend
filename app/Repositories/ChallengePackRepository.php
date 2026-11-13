@@ -33,6 +33,7 @@ class ChallengePackRepository implements ChallengePackRepositoryInterface
         if ($usageCount < 1) return null;
 
         return DB::transaction(function () use ($userId, $transactionId, $usageCount) {
+            \App\Models\User::query()->lockForUpdate()->findOrFail($userId);
             $pack = ChallengePacksWebhook::where('user_id', $userId)
                 ->where('transaction_id', $transactionId)
                 ->lockForUpdate()
@@ -43,7 +44,7 @@ class ChallengePackRepository implements ChallengePackRepositoryInterface
                 ->where('user_id', $userId)
                 ->where('pack_transaction_id', $transactionId)
                 ->where('status', 'reserved')
-                ->where('expires_at', '>', now())
+                ->where(fn ($q) => $q->where('durable_hold', true)->orWhere('expires_at', '>', now()))
                 ->count();
             if ($pack->remaining - $reserved < $usageCount) return null;
 

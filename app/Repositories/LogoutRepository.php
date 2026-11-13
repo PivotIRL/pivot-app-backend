@@ -20,6 +20,6 @@ class LogoutRepository implements LogoutRepositoryInterface
     public function logout(Users|User $user): void
     {
         $user->forceFill(['fcm_token' => null])->save();
-        $user->tokens()->delete();
+        $user->revokeMobileTokens();
     }
 }

@@ -10,6 +10,7 @@ class ResearchResource extends JsonResource
         $isPremium = $request->user()
             && app(MembershipAccessService::class)->snapshot($request->user())['effective_package'] === 'premium';
         return [
+            'id' => (int) $this->id,
             'fun_facts' => $this->fun_facts,
             'summary' => $this->summary,
             'video_link' => $isPremium ? $this->video_link : null,

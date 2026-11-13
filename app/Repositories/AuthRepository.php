@@ -2,7 +2,7 @@
 
 namespace App\Repositories;
 
-use App\Models\Users;
+use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use App\Repositories\Auth\AuthRepositoryInterface;
 use Illuminate\Support\Facades\Auth;
@@ -12,11 +12,11 @@ use App\Support\GroupChallengeStatus;
 
 class AuthRepository implements AuthRepositoryInterface
 {
-    public function createUser(array $data): Users
+    public function createUser(array $data): User
     {
         return DB::transaction(function () use ($data) {
 
-            $user = Users::create([
+            $user = User::create([
                 'name'           => $data['name'] ?? null,
                 'email'          => $data['email'],
                 'password'       => Hash::make($data['password']),
@@ -36,30 +36,30 @@ class AuthRepository implements AuthRepositoryInterface
         });
     }
 
-    public function findByEmail(string $email): ?Users
+    public function findByEmail(string $email): ?User
     {
-        return Users::where('email', $email)->first();
+        return User::where('email', $email)->first();
     }
 
-    public function updateLastLogin(Users $user): void
+    public function updateLastLogin(User $user): void
     {
         $user->update(['last_login_at' => now()]);
     }
 
-    public function updateStatusByUserId(int $userId, string $status): Users
+    public function updateStatusByUserId(int $userId, string $status): User
     {
-        $user = Users::findOrFail($userId);
+        $user = User::findOrFail($userId);
         $user->status = $status;
         $user->save();
 
         return $user->fresh(['subscription']);
     }
 
-    public function updateFcmTokenByUserId(int $userId, string $fcmToken): Users
+    public function updateFcmTokenByUserId(int $userId, string $fcmToken): User
     {
         // A device token must belong only to the account currently using it.
-        Users::where('fcm_token', $fcmToken)->where('id', '!=', $userId)->update(['fcm_token' => null]);
-        $user = Users::findOrFail($userId);
+        User::where('fcm_token', $fcmToken)->where('id', '!=', $userId)->update(['fcm_token' => null]);
+        $user = User::findOrFail($userId);
         $user->fcm_token = $fcmToken;
         $user->save();
 
@@ -68,7 +68,7 @@ class AuthRepository implements AuthRepositoryInterface
 
     public function updatePassword(string $email, string $password): void
     {
-        Users::where('email', $email)->update([
+        User::where('email', $email)->update([
             'password' => Hash::make($password),
         ]);
     }

@@ -12,6 +12,11 @@ class ChallengeReservationController extends Controller
 {
     public function __construct(private readonly ChallengeReservationService $reservations) {}
 
+    public function index(Request $request)
+    {
+        return response()->json(['data' => $this->reservations->outstanding($request->user())]);
+    }
+
     public function reserve(Request $request)
     {
         $data = $request->validate([

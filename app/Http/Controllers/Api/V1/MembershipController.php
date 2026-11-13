@@ -327,6 +327,51 @@ class MembershipController extends Controller
         return null;
     }
 
+    /** Recover account-owned attempts even after reinstall/older clients lost their key. */
+    public function recoverCheckout(Request $request, MembershipReconciliationService $reconciliation)
+    {
+        $data = $request->validate(['idempotency_key' => 'nullable|uuid']);
+        try { $reconciliation->reconcile($request->user()); }
+        catch (\RuntimeException $exception) { return response()->json(['message' => $exception->getMessage()], 503); }
+        $attempts = DB::table('membership_attempts')->where('user_id', $request->user()->id)
+            ->whereIn('operation', ['purchase', 'change'])->where(function ($query) use ($data) {
+                $query->whereIn('status', ['pending', 'scheduled']);
+                if (!empty($data['idempotency_key'])) $query->orWhere('idempotency_key', $data['idempotency_key']);
+            })
+            ->orderBy('id')->get()->map(fn ($attempt) => [
+                'attempt_id' => $attempt->attempt_id, 'operation' => $attempt->operation,
+                'status' => $attempt->status, 'idempotency_key' => $attempt->idempotency_key,
+                'quote' => json_decode($attempt->quote, true),
+            ]);
+        return response()->json(['attempts' => $attempts]);
+    }
+
+    public function cancelCheckout(Request $request, MembershipReconciliationService $reconciliation)
+    {
+        $data = $request->validate(['attempt_id' => 'required|uuid']);
+        $user = $request->user();
+        $owned = DB::table('membership_attempts')->where('user_id', $user->id)
+            ->where('attempt_id', $data['attempt_id'])->whereIn('operation', ['purchase', 'change'])->exists();
+        if (! $owned) return response()->json(['message' => 'Attempt not found.'], 404);
+        // A cancelled Play sheet is not proof of no payment. Verify with the store first.
+        try { $reconciliation->reconcile($user); }
+        catch (\RuntimeException $exception) { return response()->json(['message' => $exception->getMessage()], 503); }
+        return DB::transaction(function () use ($user, $data) {
+            Users::query()->lockForUpdate()->findOrFail($user->id);
+            $attempt = DB::table('membership_attempts')->where('user_id', $user->id)
+                ->where('attempt_id', $data['attempt_id'])->lockForUpdate()->first();
+            if (in_array($attempt->status, ['completed', 'scheduled'], true) || $attempt->verified_transaction_id) {
+                abort(409, 'A verified or scheduled payment cannot be cancelled here. Refresh or restore purchases.');
+            }
+            if ($attempt->status === 'pending') {
+                app(\App\Services\Membership\MembershipAttemptStatus::class)->transition(
+                    (int) $attempt->id, 'cancelled', null, 'complete_revenuecat_reconciliation_found_no_matching_purchase');
+            }
+            return response()->json(['attempt_id' => $attempt->attempt_id,
+                'status' => $attempt->status === 'failed' ? 'failed' : 'cancelled']);
+        });
+    }
+
     public function attemptStatus(Request $request)
     {
         $data = $request->validate(['attempt_id' => 'required|string|max:100']);
@@ -343,7 +388,7 @@ class MembershipController extends Controller
         $existing = DB::table('membership_attempts')->where('user_id', $user->id)->where('operation', $operation)->where('idempotency_key', $key)->first();
         if ($existing) {
             if ($existing->request_fingerprint !== $fingerprint) return response()->json(['message' => 'Idempotency key was reused with a different request.'], 409);
-            return response()->json(json_decode($existing->quote, true));
+            return $this->replayAttempt($request, $operation, $data);
         }
         $now = now()->utc();
         $attemptId = (string) Str::uuid();
@@ -385,7 +430,7 @@ class MembershipController extends Controller
             });
         } catch (QueryException $e) {
             $retry = DB::table('membership_attempts')->where('user_id', $user->id)->where('operation', $operation)->where('idempotency_key', $key)->first();
-            if ($retry && $retry->request_fingerprint === $fingerprint) return response()->json(json_decode($retry->quote, true));
+            if ($retry && $retry->request_fingerprint === $fingerprint) return $this->replayAttempt($request, $operation, $data);
             return response()->json(['message' => 'Conflicting membership attempt.'], 409);
         }
         return response()->json($response, 201);
@@ -409,6 +454,7 @@ class MembershipController extends Controller
         if ($attempt->request_fingerprint !== hash('sha256', json_encode($data))) {
             return response()->json(['message' => 'Idempotency key was reused with a different request.'], 409);
         }
+        if (in_array($attempt->status, ['cancelled', 'failed'], true)) return response()->json(['message' => 'This checkout was retired. Recover checkout before retrying.'], 409);
         if ($attempt->status === 'pending' && $attempt->expires_at && now()->greaterThanOrEqualTo($attempt->expires_at)) {
             return response()->json(['message' => 'This checkout quote has expired. Create a new attempt to review current terms.'], 409);
         }

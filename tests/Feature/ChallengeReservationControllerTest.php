@@ -24,6 +24,7 @@ class ChallengeReservationControllerTest extends TestCase
 
         $first = $this->reserve($challenge->id)->json();
         $second = $this->reserve($challenge->id)->json();
+        $this->reserve($challenge->id); // Free membership currently includes three slots.
         $this->postJson('/api/v1/challenge-reservations', [
             'challenge_id' => $challenge->id,
             'reservation_id' => (string) Str::uuid(),
@@ -103,7 +104,7 @@ class ChallengeReservationControllerTest extends TestCase
         $first = $this->postJson('/api/v1/challenge-reservations', $body, ['Idempotency-Key' => $key])
             ->assertCreated();
         $this->postJson('/api/v1/challenge-reservations', $body, ['Idempotency-Key' => $key])
-            ->assertOk()->assertExactJson($first->json());
+            ->assertCreated()->assertExactJson($first->json());
 
         $this->postJson('/api/v1/challenge-reservations', [
             ...$body,

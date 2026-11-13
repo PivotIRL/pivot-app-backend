@@ -73,7 +73,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/membership/purchase-checkouts', [MembershipController::class, 'purchaseCheckout']);
         Route::post('/membership/change-checkouts', [MembershipController::class, 'changeCheckout']);
         Route::post('/membership/attempt-status', [MembershipController::class, 'attemptStatus']);
+        Route::post('/membership/checkout-recovery', [MembershipController::class, 'recoverCheckout']);
+        Route::post('/membership/checkouts/cancel', [MembershipController::class, 'cancelCheckout']);
         Route::post('/challenge-reservations', [ChallengeReservationController::class, 'reserve']);
+        Route::get('/challenge-reservations', [ChallengeReservationController::class, 'index']);
         Route::post('/challenge-reservations/{reservationId}/resume', [ChallengeReservationController::class, 'resume']);
         Route::post('/challenge-reservations/{reservationId}/complete', [ChallengeReservationController::class, 'complete']);
         Route::post('/challenge-reservations/{reservationId}/abandon', [ChallengeReservationController::class, 'abandon']);
@@ -92,6 +95,7 @@ Route::prefix('v1')->group(function () {
         // Challenge pack routes
         Route::get('challenge-pack', [ChallengePackController::class, 'index']);
         Route::patch('challenge-pack', [ChallengePackController::class, 'decrementRemaining']);
+        Route::post('challenge-pack/reconcile-legacy', \App\Http\Controllers\Api\V1\LegacyPackReconciliationController::class);
     
         // Group challenge routes
         Route::post('group-challenges/start', [GroupChallengeController::class, 'start']);
@@ -178,7 +182,8 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('goal-log', GoalLogsController::class);
 
         // Emotion Logs Routes
-        Route::apiResource('emotion-log', EmotionLogsController::class);
+        Route::get('emotion-log/counts', [EmotionLogsController::class, 'counts']);
+        Route::apiResource('emotion-log', EmotionLogsController::class)->only(['store']);
 
         // Streak Logs Routes
         Route::apiResource('streak-log', StreakLogsController::class);

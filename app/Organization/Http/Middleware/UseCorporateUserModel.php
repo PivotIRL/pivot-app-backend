@@ -8,9 +8,8 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * The existing /auth/login issues Sanctum tokens on App\Models\Users, so $request->user()
- * can be a Users instance. Corporate policies and services work with App\Models\User,
- * so swap in the matching User (same row) for the rest of the request.
+ * Historical tokens may resolve to Users, which now extends User and already
+ * supports corporate policies. Retain normalization for other legacy callers.
  */
 class UseCorporateUserModel
 {

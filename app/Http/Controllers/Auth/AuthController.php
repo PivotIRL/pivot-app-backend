@@ -162,7 +162,7 @@ class AuthController extends Controller
 
             Subscription::where('user_id', $user->id)->delete();
 
-            $user->tokens()->delete();
+            $user->revokeMobileTokens();
             $user->delete();
 
             return response()->json([
