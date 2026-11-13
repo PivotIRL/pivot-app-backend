@@ -15,14 +15,7 @@ class CategoryController extends Controller
 
         if ($request->filled('search')) {
             $search = strtolower(trim($request->search));
-            $query->where(function ($q) use ($search) {
-                $q->whereRaw('LOWER(name) LIKE ?', ["%{$search}%"])
-                  ->orWhereRaw('LOWER(description) LIKE ?', ["%{$search}%"]);
-            });
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->whereRaw('LOWER(name) LIKE ?', ["%{$search}%"]);
         }
 
         $categories = $query->orderBy('created_at', 'desc')->paginate(10);
