@@ -54,13 +54,11 @@ class MembershipAccessService
         }
 
         $legacyAll = (bool) ($row->legacy_all_categories ?? false);
-        $categoryIds = $this->selectedCategoryIds($user);
 
-        $limits = $effective === 'premium'
-            ? ['daily_challenges' => 5, 'category_count' => null, 'blocked_apps' => null, 'scheduled_blocking_hours' => 24, 'blocking_intervals' => null, 'blocked_app_usage_minutes' => 30, 'hardcore' => true, 'team_connections' => 10, 'full_research' => true]
-            : ($effective === 'standard'
-                ? ['daily_challenges' => 3, 'category_count' => $legacyAll ? null : 5, 'blocked_apps' => 10, 'scheduled_blocking_hours' => 12, 'blocking_intervals' => 8, 'blocked_app_usage_minutes' => 15, 'hardcore' => false, 'team_connections' => 5, 'full_research' => false]
-                : ['daily_challenges' => 3, 'category_count' => 5, 'blocked_apps' => 10, 'scheduled_blocking_hours' => 12, 'blocking_intervals' => 8, 'blocked_app_usage_minutes' => 15, 'hardcore' => false, 'team_connections' => 5, 'full_research' => false]);
+        $plans = app(MembershipPlanCatalog::class)->plans();
+        $limits = $effective === null ? config('membership.legacy_free_limits') : $plans[$effective]['limits'];
+        if ($legacyAll && $effective !== null) $limits['category_count'] = null;
+        $categoryIds = $this->selectedCategoryIds($user, $limits['category_count']);
 
         $ack = DB::table('membership_announcement_acknowledgements')
             ->where('user_id', $user->id)->where('version', self::ANNOUNCEMENT_VERSION)->exists();
@@ -83,21 +81,24 @@ class MembershipAccessService
             'legacy_benefits' => ['all_categories' => $legacyAll],
             'selected_category_ids' => $categoryIds,
             'limits' => $limits,
+            'plan_catalog' => ['schema_version' => 1, 'plans' => $plans],
             'announcement' => ['version' => self::ANNOUNCEMENT_VERSION, 'required' => $eligibleFree && ! $ack],
         ];
     }
 
     /** Reuse onboarding choices when no separate membership selection exists. */
-    public function selectedCategoryIds(User|Users $user): array
+    public function selectedCategoryIds(User|Users $user, ?int $count = null): array
     {
         $selected = DB::table('membership_categories')->where('user_id', $user->id)
             ->orderBy('hobby_id')->pluck('hobby_id')->map(fn ($id) => (string) $id)->all();
         if ($selected !== []) return $selected;
 
-        // Standard includes five categories. Keep Micro-Movement and choose the
+        // Keep Micro-Movement and choose the configured number of
         // remaining categories deterministically from the user's onboarding choices.
-        return $user->hobbies()->orderByRaw("CASE WHEN LOWER(name) = 'micro-movement' THEN 0 ELSE 1 END")
-            ->orderBy('hobbies.id')->limit(5)->pluck('hobbies.id')
+        $query = $user->hobbies()->orderByRaw("CASE WHEN LOWER(name) = 'micro-movement' THEN 0 ELSE 1 END")
+            ->orderBy('hobbies.id');
+        if ($count !== null) $query->limit($count);
+        return $query->pluck('hobbies.id')
             ->map(fn ($id) => (string) $id)->all();
     }
 

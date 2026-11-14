@@ -36,8 +36,8 @@ class ActivityController extends Controller
     {
         $snapshot = $membership->snapshot($request->user());
         $maxTier = $snapshot['effective_package'] === 'premium' ? 3 : ($snapshot['effective_package'] === 'standard' ? 2 : 1);
-        $allowedCategories = $snapshot['effective_package'] === 'standard' && ! $snapshot['legacy_benefits']['all_categories']
-            ? $snapshot['selected_category_ids']
+        $allowedCategories = $snapshot['effective_package'] !== null && $snapshot['limits']['category_count'] !== null
+            ? (count($snapshot['selected_category_ids']) === $snapshot['limits']['category_count'] ? $snapshot['selected_category_ids'] : [])
             : null;
         if ((int) $activity->tier > $maxTier || ($allowedCategories !== null && ! in_array((string) $activity->hobby_id, $allowedCategories, true))) {
             abort(404);

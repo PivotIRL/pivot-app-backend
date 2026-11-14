@@ -7,8 +7,8 @@ class ResearchResource extends JsonResource
 {
     public function toArray($request)
     {
-        $isPremium = $request->user()
-            && app(MembershipAccessService::class)->snapshot($request->user())['effective_package'] === 'premium';
+        $access = $request->user() ? app(MembershipAccessService::class)->snapshot($request->user()) : null;
+        $isPremium = $access && $access['effective_package'] !== null && $access['limits']['full_research'];
         return [
             'id' => (int) $this->id,
             'fun_facts' => $this->fun_facts,

@@ -59,6 +59,8 @@ Realtime TLS and production API host configuration remain outside this change, a
 
 ## Follow-up fixes and deployment check
 
+Post-deployment recheck (2026-11-13, after user confirmation): the new reservation-list, legacy-reconciliation and checkout recovery/cancellation routes now return 401 without authentication instead of the earlier 404/405. Article, resume/complete and authenticated emotion-count routes also return 401. Public leaderboard returns 200 with both canonical and legacy identity fields; all 311 returned rows have matching aliases. These checks establish route availability and the public leaderboard contract, not authenticated recovery behavior or migration correctness. Authenticated acceptance remains pending; no live account mutations were performed.
+
 Final follow-up validation: **62 tests passed, 367 assertions** (`ReleaseRecoveryTest`, `GroupChallengeControllerTest`, `ChallengeReservationControllerTest`, `RevenueCatMembershipFetchTest`, `MobileUserCompatibilityTest`). Log: `storage/framework/testing/followup-recovery-final.log`. The first attempt failed because the disposable database was unavailable; after startup recovery, the complete rerun passed. No application database was used. PHP syntax checks and `git diff --check` passed.
 
 - Leaderboard now includes both canonical `user_id`/`user_name` and legacy `host_id`/`host_name`. Both identify the ranked user, including non-host participants. Contract tests assert both pairs.

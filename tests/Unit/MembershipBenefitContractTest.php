@@ -11,6 +11,20 @@ use Tests\TestCase;
 
 class MembershipBenefitContractTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $standard = ['daily_challenges' => 3, 'category_count' => 5, 'blocked_apps' => 10,
+            'scheduled_blocking_hours' => 12, 'blocking_intervals' => 8, 'blocked_app_usage_minutes' => 15,
+            'hardcore' => false, 'team_connections' => 5, 'full_research' => false];
+        $premium = array_replace($standard, ['daily_challenges' => 5, 'category_count' => null,
+            'blocked_apps' => null, 'scheduled_blocking_hours' => 24, 'blocking_intervals' => null,
+            'blocked_app_usage_minutes' => 30, 'hardcore' => true, 'team_connections' => 10, 'full_research' => true]);
+        $this->mock(\App\Services\Membership\MembershipPlanCatalog::class, fn ($mock) =>
+            $mock->shouldReceive('plans')->andReturn(['standard' => ['revision' => 1, 'limits' => $standard],
+                'premium' => ['revision' => 1, 'limits' => $premium]]));
+    }
+
     public function test_active_memberships_and_premium_trials_expose_advertised_limits(): void
     {
         foreach ([['standard', 'active', 3, 15], ['premium', 'active', 5, 30], ['premium', 'trial', 5, 30]] as [$package, $status, $challenges, $minutes]) {

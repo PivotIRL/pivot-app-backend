@@ -63,6 +63,7 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/access', [MembershipController::class, 'access']);
+        Route::get('/membership/plans', fn (\App\Services\Membership\MembershipPlanCatalog $catalog) => response()->json($catalog->response()));
         Route::post('/trial-checkouts', [MembershipController::class, 'trialCheckout']);
         Route::post('/trial-checkouts/cancel', [MembershipController::class, 'cancelTrialCheckout']);
         Route::post('/trials/start', [MembershipController::class, 'startTrial']);

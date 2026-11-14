@@ -29,7 +29,7 @@ class MembershipOnboardingCategoriesTest extends TestCase
         $hobbies->shouldReceive('limit')->with(5)->once()->andReturnSelf();
         $hobbies->shouldReceive('pluck')->with('hobbies.id')->once()->andReturn(collect([9, 2, 4, 6, 8]));
 
-        $this->assertSame(['9', '2', '4', '6', '8'], (new MembershipAccessService())->selectedCategoryIds($user));
+        $this->assertSame(['9', '2', '4', '6', '8'], (new MembershipAccessService())->selectedCategoryIds($user, 5));
     }
 
     public function test_existing_membership_choices_are_preserved(): void

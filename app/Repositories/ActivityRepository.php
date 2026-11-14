@@ -172,11 +172,12 @@ class ActivityRepository implements ActivityRepositoryInterface
         $maxTier = min(max($subscriptionTierId, 1), 3);
         $allowedTiers = range(1, $maxTier);
 
-        $selectedIds = app(MembershipAccessService::class)->selectedCategoryIds($user);
-        $legacyAll = (bool) DB::table('account_access')->where('user_id', $user->id)->value('legacy_all_categories');
-        $hobbies = $package === 'premium' || $legacyAll
+        $access = app(MembershipAccessService::class)->snapshot($user);
+        $count = $access['limits']['category_count'];
+        $selectedIds = $count === null || count($access['selected_category_ids']) === $count ? $access['selected_category_ids'] : [];
+        $hobbies = $package !== null && $count === null
             ? \App\Models\Hobby::query()->get()
-            : ($package === 'standard'
+            : ($package !== null
                 ? \App\Models\Hobby::query()->whereIn('id', $selectedIds)->get()
                 : ($user->hobbies->isEmpty() ? \App\Models\Hobby::query()->get() : $user->hobbies));
         if ($excludeMicroMovement) {
@@ -334,12 +335,11 @@ class ActivityRepository implements ActivityRepositoryInterface
 
     private function scopeMembershipCategories(Builder $query, $user, ?string $package): void
     {
-        if (! $user || $package === 'premium') return;
-        $legacyAll = (bool) DB::table('account_access')->where('user_id', $user->id)->value('legacy_all_categories');
-        if ($legacyAll) return;
-        if ($package === 'standard') {
-            $ids = app(MembershipAccessService::class)->selectedCategoryIds($user);
-            $query->whereIn('hobby_id', $ids ?: [-1]);
-        }
+        if (! $user || $package === null) return;
+        $access = app(MembershipAccessService::class)->snapshot($user);
+        $count = $access['limits']['category_count'];
+        if ($count === null) return;
+        $ids = count($access['selected_category_ids']) === $count ? $access['selected_category_ids'] : [];
+        $query->whereIn('hobby_id', $ids ?: [-1]);
     }
 }

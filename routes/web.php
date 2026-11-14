@@ -48,6 +48,8 @@ Route::prefix('dashboard')->name('admin.')->group(function () {
         // Dashboard Home
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('subscriptions', [SubscriptionController::class, 'index'])->name('subscriptions.index');
+        Route::get('membership-plans', [\App\Http\Controllers\Admin\MembershipPlanController::class, 'index'])->name('membership-plans.index');
+        Route::put('membership-plans/{plan}', [\App\Http\Controllers\Admin\MembershipPlanController::class, 'update'])->name('membership-plans.update');
         Route::get('promo-codes', [PromoCodeController::class, 'index'])->name('promo-codes.index');
         Route::post('promo-codes', [PromoCodeController::class, 'store'])->name('promo-codes.store');
         Route::get('promo-codes/{promoCode}/edit', [PromoCodeController::class, 'edit'])->name('promo-codes.edit');

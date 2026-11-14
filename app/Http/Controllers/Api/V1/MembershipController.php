@@ -128,19 +128,18 @@ class MembershipController extends Controller
 
     public function updateCategories(Request $request)
     {
-        $data = $request->validate(['category_ids' => 'required|array|size:5', 'category_ids.*' => 'required|string|distinct']);
         $user = $request->user();
         $snapshot = $this->access->snapshot($user);
-        $standardSelection = $snapshot['selected_package'] === 'standard'
-            && ($snapshot['effective_package'] === 'standard' || ($snapshot['access_status'] === 'trial' && $snapshot['effective_package'] === 'premium'));
-        if (! $standardSelection || ! in_array($snapshot['access_status'], ['active', 'trial'], true)) {
-            return response()->json(['message' => 'Active Standard access is required to update membership categories.'], 409);
+        if ($snapshot['effective_package'] === null || ! in_array($snapshot['access_status'], ['active', 'trial'], true)) {
+            return response()->json(['message' => 'Active membership is required to update categories.'], 409);
         }
+        $count = $snapshot['limits']['category_count'];
+        $data = $request->validate(['category_ids' => 'required|array|min:1'.($count === null ? '' : '|size:'.$count), 'category_ids.*' => 'required|string|distinct']);
         $ids = array_map('intval', $data['category_ids']);
         $known = Hobby::query()->whereIn('id', $ids)->pluck('id')->map(fn ($id) => (int) $id)->all();
         $mandatory = Hobby::query()->whereRaw('LOWER(name) = ?', ['micro-movement'])->value('id');
-        if (count($known) !== 5 || ($mandatory && ! in_array((int) $mandatory, $ids, true))) {
-            throw ValidationException::withMessages(['category_ids' => 'Choose five known categories and include Micro-Movement.']);
+        if (count($known) !== count($ids) || ($mandatory && ! in_array((int) $mandatory, $ids, true))) {
+            throw ValidationException::withMessages(['category_ids' => 'Choose the required number of known categories and include Micro-Movement.']);
         }
         DB::transaction(function () use ($user, $ids) {
             DB::table('membership_categories')->where('user_id', $user->id)->delete();
