@@ -22,7 +22,7 @@ class GlobalAnnouncementTest extends TestCase {
     private function publish(string $platform = 'both', bool $push = true, ?string $key = null): int {
         $this->post('/dashboard/notifications', ['request_key' => $key ?? (string) Str::uuid(),
             'title' => 'Hello Pivot', 'body' => 'Find your rhythm today.', 'platform' => $platform,
-            'in_app' => 1, 'push' => (int) $push, 'days' => 7])->assertRedirect();
+            'in_app' => '1', 'push' => $push ? '1' : '0', 'days' => '7'])->assertRedirect();
         return DB::table('global_announcements')->max('id');
     }
     public function test_authentication_and_validation(): void {
@@ -34,6 +34,17 @@ class GlobalAnnouncementTest extends TestCase {
         $this->admin(); $this->get('/dashboard/notifications')->assertOk()->assertSee('Send a notification');
         $this->postJson('/dashboard/notifications', ['request_key' => (string) Str::uuid(), 'title' => 'a', 'body' => 'b',
             'platform' => 'both', 'in_app' => 0, 'push' => 0, 'days' => 7])->assertUnprocessable();
+    }
+    public function test_browser_form_publishes_in_app_message_and_renders_history(): void {
+        $this->admin();
+        $this->freezeTime();
+        $id = $this->publish('android', false);
+        $message = DB::table('global_announcements')->find($id);
+        $this->assertSame(now()->addDays(7)->format('Y-m-d H:i:s'), $message->expires_at);
+        $this->assertDatabaseCount('announcement_deliveries', 0);
+        $this->get('/dashboard/notifications')->assertOk()->assertSee('Hello Pivot')
+            ->assertSee('Active')->assertSee('Message preview')
+            ->assertDontSee('No registered devices matched this audience.');
     }
     public function test_platform_targeting_read_isolation_and_withdrawal(): void {
         $first = $this->member(); $this->admin();

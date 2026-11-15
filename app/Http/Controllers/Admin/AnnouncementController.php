@@ -23,7 +23,7 @@ class AnnouncementController extends Controller {
             $inserted = DB::table('global_announcements')->insertOrIgnore([
                 'request_key' => $data['request_key'], 'title' => $data['title'], 'body' => $data['body'],
                 'platform' => $data['platform'], 'in_app' => $data['in_app'], 'push' => $data['push'],
-                'expires_at' => now()->addDays($data['days']), 'created_by' => $request->user('admin')->id,
+                'expires_at' => now()->addDays((int) $data['days']), 'created_by' => $request->user('admin')->id,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
             if (!$inserted || !$data['push']) return;
@@ -35,7 +35,9 @@ class AnnouncementController extends Controller {
                     ])->all());
                 });
         });
-        return redirect()->route('admin.announcements.index')->with('success', 'Announcement published. Push delivery is queued for registered devices.');
+        return redirect()->route('admin.announcements.index')->with('success', $data['push']
+            ? 'Notification published. Push delivery is queued for registered devices.'
+            : 'Notification published. Members can now see it in the app.');
     }
     public function withdraw(int $id) {
         DB::transaction(function () use ($id) {
