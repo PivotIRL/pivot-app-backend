@@ -36,6 +36,7 @@ Artisan::command('activities:normalize-instructions', function () {
 // Automatically purge app analytics logs older than 30 days every day
 Schedule::command('app:purge-old-usage-logs')->daily();
 Schedule::command('notifications:send-engagement')->everyFifteenMinutes()->withoutOverlapping();
+Schedule::command('notifications:send-global')->everyMinute()->withoutOverlapping()->runInBackground();
 Schedule::job(new ExpireOrganizationContracts)->daily();
 Schedule::job(new ActivateOrganizationContracts)->daily();
 Schedule::job(new ReconcileOrganizationSeats)->daily();

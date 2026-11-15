@@ -38,6 +38,7 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::prefix('v1')->group(function () {
+    Route::get('/app-update-policy', [\App\Http\Controllers\AppUpdateController::class, 'show'])->middleware('throttle:60,1');
 
     Route::post('/auth/register', [AuthController::class, 'register']);
     Route::post('/auth/login', [AuthController::class, 'login']);
@@ -63,6 +64,9 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/access', [MembershipController::class, 'access']);
+        Route::post('/notification-devices', [\App\Http\Controllers\AnnouncementController::class, 'register']);
+        Route::get('/announcements', [\App\Http\Controllers\AnnouncementController::class, 'index']);
+        Route::post('/announcements/{id}/read', [\App\Http\Controllers\AnnouncementController::class, 'read']);
         Route::get('/membership/plans', fn (\App\Services\Membership\MembershipPlanCatalog $catalog) => response()->json($catalog->response()));
         Route::post('/trial-checkouts', [MembershipController::class, 'trialCheckout']);
         Route::post('/trial-checkouts/cancel', [MembershipController::class, 'cancelTrialCheckout']);
