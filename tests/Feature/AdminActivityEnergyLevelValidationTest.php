@@ -75,4 +75,16 @@ class AdminActivityEnergyLevelValidationTest extends TestCase
         $this->assertFalse(Validator::make(['sensory_tags' => ['Sound', 'Sound']], $rules)->passes());
     }
 
+    public function test_new_activity_requires_at_least_one_mood(): void
+    {
+        $request = ActivityRequest::create('/admin/activities', 'POST');
+        $rules = array_intersect_key($request->rules(), array_flip(['mood_match', 'mood_match.*']));
+        foreach ([[], ['mood_match' => null], ['mood_match' => []]] as $data) {
+            $this->assertFalse(Validator::make($data, $rules)->passes());
+        }
+        $this->assertTrue(Validator::make(['mood_match' => ['Happy']], $rules)->passes());
+        $edit = ActivityRequest::create('/admin/activities/1', 'PUT');
+        $this->assertTrue(Validator::make([], ['mood_match' => $edit->rules()['mood_match']])->passes());
+    }
+
 }

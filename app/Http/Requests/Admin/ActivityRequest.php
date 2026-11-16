@@ -56,7 +56,7 @@ class ActivityRequest extends FormRequest
             'outcome_tag.*' => 'required|string|max:100|distinct',
             'description' => 'required|string',
             'time' => 'nullable|in:daytime,evening',
-            'mood_match' => 'nullable|array|max:50',
+            'mood_match' => ($this->isMethod('post') ? 'required|array|min:1|max:50' : 'nullable|array|max:50'),
             'mood_match.*' => 'required|string|max:100|distinct',
         ];
     }
@@ -64,6 +64,8 @@ class ActivityRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'mood_match.required' => 'Please select at least one mood match.',
+            'mood_match.min' => 'Please select at least one mood match.',
             'hobby_id.required' => 'Please select a category for this activity.',
             'hobby_id.integer' => 'Please select a valid category.',
             'hobby_id.exists' => 'The selected category is invalid. Please choose another category.',

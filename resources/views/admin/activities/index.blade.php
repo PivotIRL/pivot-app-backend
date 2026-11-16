@@ -174,7 +174,7 @@
                         @error('time') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group col-span-2">
-                        <label class="form-label">Mood Match</label>
+                        <label class="form-label">Mood Match *</label>
                         @include('admin.activities.tag-input', ['field' => 'mood_match', 'inputId' => 'create-mood'])
                         @error('mood_match') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
