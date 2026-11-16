@@ -10,7 +10,9 @@ use App\Organization\Http\Controllers\OrganizationDomainController;
 use App\Organization\Http\Controllers\OrganizationInvitationController;
 use App\Organization\Http\Controllers\OrganizationMemberController;
 use App\Organization\Http\Controllers\OrganizationRoleController;
+use App\Organization\Http\Controllers\PermissionCatalogController;
 use App\Organization\Http\Controllers\RedemptionCodeController;
+use App\Organization\Http\Controllers\RoleCatalogController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -40,6 +42,10 @@ Route::middleware(['auth:organization-dashboard', 'organization.dashboard'])->gr
 
     // The signed-in dashboard user's own organizations, roles and permissions.
     Route::get('corporate/me', [CorporateAccessController::class, 'me'])->name('corporate.me');
+
+    // Role and permission definitions (what exists, not what the user holds).
+    Route::get('corporate/roles', [RoleCatalogController::class, 'index'])->name('corporate.roles.index');
+    Route::get('corporate/permissions', [PermissionCatalogController::class, 'index'])->name('corporate.permissions.index');
 
     Route::middleware('organization.tenant')
         ->prefix('organizations/{organization}')
