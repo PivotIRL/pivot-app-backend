@@ -57,4 +57,13 @@ class InterestMinimumValidationTest extends TestCase
             $this->assertTrue($this->validator()->make($input, $rules)->fails());
         }
     }
+    public function test_activity_ids_accept_known_ids_and_reject_invalid_selections(): void
+    {
+        $rules = (new UpdateActivitiesRequest())->rules();
+        $this->assertTrue($this->validator()->make(['user_id' => 1, 'category_ids' => [1, 2, 3, 4, 5]], $rules)->passes());
+        foreach ([[1, 2, 3, 4], [1, 1, 2, 3, 4], [1, 2, 3, 4, 999], ['Gardening', 2, 3, 4, 5]] as $ids) {
+            $this->assertTrue($this->validator()->make(['user_id' => 1, 'category_ids' => $ids], $rules)->fails());
+        }
+    }
+
 }

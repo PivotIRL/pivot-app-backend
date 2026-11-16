@@ -181,7 +181,7 @@ class ProfileController extends Controller
             ], 404);
         }
 
-        $hobbyIds = Hobby::query()
+        $hobbyIds = $validated['category_ids'] ?? Hobby::query()
             ->whereIn('name', $validated['activities'])
             ->pluck('id')
             ->all();
