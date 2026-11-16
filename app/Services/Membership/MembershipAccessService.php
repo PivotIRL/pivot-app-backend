@@ -109,10 +109,11 @@ class MembershipAccessService
         return [
             'policy_version' => 1,
             'can_update' => true,
-            'categories' => Hobby::query()->orderBy('id')->get(['id', 'name', 'active'])->map(fn (Hobby $hobby) => [
+            'categories' => Hobby::query()->orderBy('id')->get(['id', 'name', 'active', 'image_path'])->map(fn (Hobby $hobby) => [
                 'id' => (string) $hobby->id,
                 'name' => $hobby->name,
                 'active' => $hobby->active,
+                'image_url' => $hobby->image_url,
                 'mandatory' => $mandatoryId !== null && (int) $mandatoryId === (int) $hobby->id,
             ])->all(),
         ];

@@ -206,7 +206,7 @@ class ActivityRepository implements ActivityRepositoryInterface
             return Activity::whereRaw('1 = 0')->paginate($perPage);
         }
 
-        $query = Activity::with(['hobby:id,name'])
+        $query = Activity::with(['hobby:id,name,image_path'])
             ->whereIn('tier', $allowedTiers)
             ->whereIn('hobby_id', $hobbyIds);
 
@@ -283,7 +283,7 @@ class ActivityRepository implements ActivityRepositoryInterface
 
     public function searchActivities(array $filters, $user = null)
     {
-        $query = Activity::query()->with('hobby:id,name');
+        $query = Activity::query()->with('hobby:id,name,image_path');
 
         if (!empty($filters['activity_title'])) {
             $search = trim($filters['activity_title']);

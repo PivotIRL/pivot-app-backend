@@ -32,6 +32,7 @@ class ActivityResource extends JsonResource
             'hobby'    => [
                 'id'   => $this->hobby->id,
                 'name' => $this->hobby->name,
+                'image_url' => $this->hobby->image_url,
             ],
         ];
     }
