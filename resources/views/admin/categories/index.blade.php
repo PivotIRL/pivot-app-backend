@@ -1,6 +1,58 @@
 @extends('layouts.admin')
 
 @section('content')
+<style>
+    .category-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 44px;
+        padding: 5px 8px;
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--text-muted);
+        font: inherit;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .category-switch:hover { background: var(--bg-main); }
+    .category-switch:focus-visible { outline: 3px solid #89cbb5; outline-offset: 3px; }
+    .category-switch__track {
+        position: relative;
+        display: inline-block;
+        flex-shrink: 0;
+        width: 44px;
+        height: 26px;
+        border-radius: 999px;
+        background: #cbd5e1;
+        box-shadow: inset 0 1px 3px rgb(15 23 42 / 12%);
+        transition: background 180ms ease;
+    }
+    .category-switch__thumb {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        display: grid;
+        place-items: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 4px rgb(15 23 42 / 20%);
+        transition: transform 180ms ease;
+    }
+    .category-switch__thumb svg { width: 12px; height: 12px; opacity: 0; }
+    .category-switch[aria-checked="true"] { color: #16805c; }
+    .category-switch[aria-checked="true"] .category-switch__track { background: #249d76; }
+    .category-switch[aria-checked="true"] .category-switch__thumb { transform: translateX(18px); }
+    .category-switch[aria-checked="true"] .category-switch__thumb svg { opacity: 1; }
+    @media (prefers-reduced-motion: reduce) {
+        .category-switch__track, .category-switch__thumb { transition: none; }
+    }
+</style>
 <ul class="breadcrumb">
     <li><a href="{{ route('admin.dashboard') }}">Admin</a></li>
     <li><i class="fa-solid fa-chevron-right" style="font-size: 0.65rem;"></i></li>
@@ -66,8 +118,13 @@
                             @csrf
                             @method('PATCH')
                             <input type="hidden" name="active" value="{{ $category->active ? '0' : '1' }}">
-                            <button type="submit" class="btn btn-secondary btn-sm" role="switch" aria-checked="{{ $category->active ? 'true' : 'false' }}" aria-label="Active status for {{ $category->name }}">
-                                {{ $category->active ? 'Active' : 'Inactive' }}
+                            <button type="submit" class="category-switch" role="switch" aria-checked="{{ $category->active ? 'true' : 'false' }}" aria-label="Active status for {{ $category->name }}">
+                                <span class="category-switch__track" aria-hidden="true">
+                                    <span class="category-switch__thumb">
+                                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m4 8 2.5 2.5L12 5"/></svg>
+                                    </span>
+                                </span>
+                                <span>{{ $category->active ? 'Active' : 'Inactive' }}</span>
                             </button>
                         </form>
                     </td>
