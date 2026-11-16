@@ -39,6 +39,26 @@ enum OrganizationRole: string
         };
     }
 
+    public function label(): string
+    {
+        return match ($this) {
+            self::ORG_OWNER => 'Owner',
+            self::ORG_ADMIN => 'Admin',
+            self::ORG_ANALYST => 'Analyst',
+            self::ORG_MEMBER => 'Member',
+        };
+    }
+
+    public function description(): string
+    {
+        return match ($this) {
+            self::ORG_OWNER => "The customer's account owner. Full administration of their own organization; can assign Admin, Analyst and Member roles.",
+            self::ORG_ADMIN => 'Day-to-day administrator. Same permissions as the Owner, but can only assign Analyst and Member roles.',
+            self::ORG_ANALYST => 'Customer staff who only need reports. Can view the organization and its reports.',
+            self::ORG_MEMBER => 'An employee using the mobile app. Has no Organization Dashboard access.',
+        };
+    }
+
     public function grants(Permission $permission): bool
     {
         return in_array($permission, $this->permissions(), true);
