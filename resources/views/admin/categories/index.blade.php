@@ -59,6 +59,12 @@
     <li style="color: var(--text-heading); font-weight: 600;">Category Management</li>
 </ul>
 
+@if($errors->any())
+<div role="alert" style="padding: 1rem; margin-bottom: 1rem; border-radius: 8px; background: #fef2f2; color: #991b1b;">
+    @foreach($errors->all() as $error)<div>{{ $error }}</div>@endforeach
+</div>
+@endif
+
 @if(session('success'))
 <div style="background: var(--success-bg); color: var(--success); padding: 0.875rem 1.25rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; border: 1px solid var(--success);">
     {{ session('success') }}
@@ -92,7 +98,7 @@
             <thead>
                 <tr>
                     <th>Category</th>
-                    <th>Icon</th>
+                    <th>Image</th>
                     <th>Activities</th>
                     <th>Active</th>
                     <th style="text-align: right;">Actions</th>
@@ -106,9 +112,11 @@
                         <div style="font-size: 0.75rem; color: var(--text-muted);">{{ Str::limit($category->description, 40) ?? 'No description' }}</div>
                     </td>
                     <td>
-                        <div style="width: 32px; height: 32px; border-radius: 8px; background: var(--bg-main); display: flex; align-items: center; justify-content: center; color: var(--primary);">
-                            <i class="{{ $category->icon ?? 'fa-solid fa-layer-group' }}"></i>
-                        </div>
+                        @if($category->image_url)
+                            <img src="{{ $category->image_url }}" alt="{{ $category->name }}" width="64" height="48" loading="lazy" style="object-fit: cover; border-radius: 8px; border: 1px solid var(--border-color, #e2e8f0);">
+                        @else
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">No image</span>
+                        @endif
                     </td>
                     <td>
                         <span class="badge badge-info">{{ $category->activities_count }} Activities</span>
@@ -133,7 +141,7 @@
                             <a href="{{ route('admin.categories.show', $category->id) }}" class="btn btn-secondary btn-sm" title="View Details">
                                 <i class="fa-solid fa-eye"></i>
                             </a>
-                            <button type="button" onclick="editCategory({{ json_encode($category) }})" class="btn btn-secondary btn-sm" title="Edit">
+                            <button type="button" onclick="editCategory({{ json_encode($category->toArray() + ['image_url' => $category->image_url]) }})" class="btn btn-secondary btn-sm" title="Edit">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
                             <button type="button" onclick="confirmDelete('{{ route('admin.categories.destroy', $category->id) }}')" class="btn btn-danger btn-sm" title="Delete">
@@ -163,12 +171,18 @@
             <h3>Add New Category</h3>
             <button type="button" class="modal-close-btn" onclick="closeModal('create-category-modal')"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <form action="{{ route('admin.categories.store') }}" method="POST">
+        <form action="{{ route('admin.categories.store') }}" method="POST" enctype="multipart/form-data">
             @csrf
             <div class="modal-body">
                 <div class="form-group">
                     <label class="form-label">Category Name *</label>
                     <input type="text" name="name" class="form-control" placeholder="e.g. Micro-Movement" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="create-category-image">Category image</label>
+                    <img id="create-image-preview" alt="Category image preview" hidden style="width: 100%; max-height: 180px; object-fit: contain; border-radius: 10px; margin-bottom: 12px;">
+                    <input type="file" name="image" id="create-category-image" class="form-control" accept="image/jpeg,image/png,image/webp" onchange="previewCategoryImage(this, 'create-image-preview')">
+                    <small style="color: var(--text-muted);">JPG, PNG or WebP. Maximum 5 MB.</small>
                 </div>
             </div>
             <div class="modal-footer">
@@ -186,13 +200,19 @@
             <h3>Edit Category</h3>
             <button type="button" class="modal-close-btn" onclick="closeModal('edit-category-modal')"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <form id="edit-category-form" method="POST">
+        <form id="edit-category-form" method="POST" enctype="multipart/form-data">
             @csrf
             @method('PUT')
             <div class="modal-body">
                 <div class="form-group">
                     <label class="form-label">Category Name *</label>
                     <input type="text" name="name" id="edit-name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="edit-category-image">Category image</label>
+                    <img id="edit-image-preview" alt="Category image preview" hidden style="width: 100%; max-height: 180px; object-fit: contain; border-radius: 10px; margin-bottom: 12px;">
+                    <input type="file" name="image" id="edit-category-image" class="form-control" accept="image/jpeg,image/png,image/webp" onchange="previewCategoryImage(this, 'edit-image-preview')">
+                    <small style="color: var(--text-muted);">JPG, PNG or WebP. Maximum 5 MB. Leave empty to keep the current image.</small>
                 </div>
             </div>
             <div class="modal-footer">
@@ -225,12 +245,27 @@
 </div>
 
 <script>
+    function previewCategoryImage(input, previewId) {
+        const preview = document.getElementById(previewId);
+        const file = input.files[0];
+        if (preview.dataset.objectUrl) URL.revokeObjectURL(preview.dataset.objectUrl);
+        const url = file ? URL.createObjectURL(file) : (preview.dataset.original || '');
+        preview.dataset.objectUrl = file ? url : '';
+        preview.src = url;
+        preview.hidden = !url;
+    }
+
     function editCategory(category) {
         const updateUrl = "{{ route('admin.categories.update', ':id') }}".replace(':id', category.id);
         document.getElementById('edit-category-form').action = updateUrl;
 
         document.getElementById('edit-name').value = category.name ?? '';
 
+        document.getElementById('edit-category-image').value = '';
+        const preview = document.getElementById('edit-image-preview');
+        preview.dataset.original = category.image_url || '';
+        preview.src = category.image_url || '';
+        preview.hidden = !category.image_url;
         openModal('edit-category-modal');
     }
 
