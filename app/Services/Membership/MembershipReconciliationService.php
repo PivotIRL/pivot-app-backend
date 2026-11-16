@@ -46,6 +46,7 @@ class MembershipReconciliationService
             // Do not release a trial while an unrecognized subscription still needs mapping.
             $unmapped = collect($state['subscriptions'])->contains(fn ($item) =>
                 ($item['environment'] ?? null) === $environment
+                && ! $this->isPromotional($item)
                 && ! $this->catalog->resolve($this->storeIdentifiers($item), $item['base_plan_id'] ?? null, null));
             if (! $unmapped) app(MembershipTrialReservation::class)->releaseExpiredAfterVerification($user->id);
         });
@@ -108,6 +109,7 @@ class MembershipReconciliationService
 
     private function subscriptionCandidate(User|Users $user, array $item, string $environment): ?array
     {
+        if ($this->isPromotional($item)) return $this->promotionalCandidate($item);
         if (($item['environment'] ?? null) !== $environment) return null;
         $entitlements = is_array($item['entitlements'] ?? null) ? ($item['entitlements']['items'] ?? []) : [];
         $package = $this->packageFromEntitlements($entitlements);
@@ -194,6 +196,7 @@ class MembershipReconciliationService
 
     private function purchaseCandidate(User|Users $user, array $item, string $environment): ?array
     {
+        if ($this->isPromotional($item)) return $this->promotionalCandidate($item);
         if (($item['environment'] ?? null) !== $environment || ($item['status'] ?? null) !== 'owned') return null;
         $entitlements = is_array($item['entitlements'] ?? null) ? ($item['entitlements']['items'] ?? []) : [];
         $package = $this->packageFromEntitlements($entitlements);
@@ -230,6 +233,30 @@ class MembershipReconciliationService
             'selected_package' => $package, 'effective_package' => $package, 'payment_path' => 'lifetime',
             'status' => 'active', 'source' => 'store', 'product_id' => $choice['product_id'],
             'trial_ends_at' => null, 'access_ends_at' => null, 'rank' => $package === 'premium' ? 2 : 1, 'expires_at' => null,
+        ];
+    }
+
+    private function isPromotional(array $item): bool
+    {
+        return strtolower((string) ($item['store'] ?? '')) === 'promotional';
+    }
+
+    /** Only authoritative RevenueCat records may establish promotional access. */
+    private function promotionalCandidate(array $item): ?array
+    {
+        if (! $this->isPromotional($item) || ($item['environment'] ?? null) !== 'production') return null;
+        if (($item['gives_access'] ?? null) !== true) return null;
+        $package = $this->packageFromEntitlements($item['entitlements']['items'] ?? []);
+        if ($package === null) return null;
+        $lifetime = array_key_exists('ends_at', $item) && $item['ends_at'] === null;
+        $end = $this->milliseconds($item['ends_at'] ?? $item['current_period_ends_at'] ?? null);
+        if (! $lifetime && (! $end || ! $end->isFuture())) return null;
+        return [
+            'selected_package' => $package, 'effective_package' => $package,
+            'payment_path' => $lifetime ? 'lifetime' : null, 'status' => 'active', 'source' => 'store',
+            'product_id' => $item['store_product_id'] ?? $item['product_id'] ?? null,
+            'trial_ends_at' => null, 'access_ends_at' => $end,
+            'rank' => $package === 'premium' ? 2 : 1, 'expires_at' => $end,
         ];
     }
 

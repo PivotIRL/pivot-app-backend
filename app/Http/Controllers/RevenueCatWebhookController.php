@@ -45,7 +45,8 @@ class RevenueCatWebhookController extends Controller
             return response()->json(['message' => 'Webhook authentication verified; no access changed.']);
         }
         // These events cannot safely be interpreted as a direct product grant.
-        if (in_array($payload['type'], ['TRANSFER', 'REFUND_REVERSED', 'BILLING_ISSUE'], true)) {
+        if (strtolower((string) ($payload['store'] ?? '')) === 'promotional'
+            || in_array($payload['type'], ['TRANSFER', 'REFUND_REVERSED', 'BILLING_ISSUE'], true)) {
             return $this->reconcileLifecycleEvent($payload, $reconciliation);
         }
         $user = $this->resolveUser($payload);

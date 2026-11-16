@@ -661,12 +661,11 @@ class GroupChallengeService
         if (! $account) throw new GroupChallengeException('Account not found.', 404);
 
         $snapshot = $this->membershipAccess->snapshot($account);
-        $maxTier = $snapshot['effective_package'] === 'premium' ? 3 : ($snapshot['effective_package'] === 'standard' ? 2 : 1);
         $allowedCategories = $snapshot['effective_package'] !== null && $snapshot['limits']['category_count'] !== null
             ? (count($snapshot['selected_category_ids']) === $snapshot['limits']['category_count'] ? $snapshot['selected_category_ids'] : [])
             : null;
 
-        if ((int) $activity->tier > $maxTier || ($allowedCategories !== null && ! in_array((string) $activity->hobby_id, $allowedCategories, true))) {
+        if (($snapshot['effective_package'] === null && (int) $activity->tier > 1) || ($allowedCategories !== null && ! in_array((string) $activity->hobby_id, $allowedCategories, true))) {
             throw new GroupChallengeException('Your current membership does not allow this challenge.', 403);
         }
     }
