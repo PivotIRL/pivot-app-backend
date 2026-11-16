@@ -45,6 +45,13 @@ class CategoryController extends Controller
         return redirect()->route('admin.categories.index')->with('success', 'Category updated successfully.');
     }
 
+    public function updateActive(Request $request, $id)
+    {
+        $data = $request->validate(['active' => 'required|boolean']);
+        Hobby::findOrFail($id)->update($data);
+        return back()->with('success', 'Category status updated successfully.');
+    }
+
     public function destroy($id)
     {
         $category = Hobby::findOrFail($id);

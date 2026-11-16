@@ -75,6 +75,7 @@ Route::prefix('dashboard')->name('admin.')->group(function () {
         Route::resource('activities', ActivityController::class);
 
         // Categories
+        Route::patch('categories/{category}/active', [CategoryController::class, 'updateActive'])->name('categories.active');
         Route::resource('categories', CategoryController::class);
 
         // // Challenge Packs

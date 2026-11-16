@@ -6,7 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class Hobby extends Model
 {
-    protected $fillable = ['name', 'icon_url'];
+    protected $fillable = ['name', 'icon_url', 'active'];
+
+    protected $casts = ['active' => 'boolean'];
 
     public function activities()
     {

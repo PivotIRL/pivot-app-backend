@@ -117,9 +117,9 @@ class ProfileRequest extends FormRequest
             'set_your_goal' => ($isCreate ? 'required' : 'sometimes') . '|numeric|min:1|max:168',
             'weekly_goal_minutes' => 'sometimes|integer|min:60|max:10080',
             'category' => 'sometimes|array|min:5',
-            'category.*' => 'string|exists:hobbies,name|distinct',
+            'category.*' => 'string|exists:hobbies,name,active,1|distinct',
             'hobby_ids' => 'sometimes|array|min:5',
-            'hobby_ids.*' => 'integer|exists:hobbies,id|distinct',
+            'hobby_ids.*' => 'integer|exists:hobbies,id,active,1|distinct',
             'onboarding_completed' => 'sometimes|boolean',
         ];
     }

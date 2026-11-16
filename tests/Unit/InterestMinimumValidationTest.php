@@ -66,4 +66,23 @@ class InterestMinimumValidationTest extends TestCase
         }
     }
 
+    public function test_inactive_categories_are_rejected_for_ids_and_legacy_names(): void
+    {
+        $factory = new Factory(new Translator(new ArrayLoader(), 'en'));
+        $presence = $this->createMock(PresenceVerifierInterface::class);
+        $presence->method('getCount')->willReturnCallback(function ($table, $column, $value, $excludeId, $idColumn, $extra) {
+            if ($table === 'hobbies') {
+                $this->assertEquals('1', $extra['active'] ?? null);
+                return in_array($value, [6, 'Inactive'], true) ? 0 : 1;
+            }
+            return 1;
+        });
+        $factory->setPresenceVerifier($presence);
+        $rules = (new UpdateActivitiesRequest())->rules();
+        $this->assertTrue($factory->make(['user_id' => 1, 'category_ids' => [1, 2, 3, 4, 6]], $rules)->fails());
+        $this->assertTrue($factory->make(['user_id' => 1, 'activities' => ['A', 'B', 'C', 'D', 'Inactive']], $rules)->fails());
+        $profileRules = ProfileRequest::create('/profile/1', 'PATCH')->rules();
+        $this->assertTrue($factory->make(['hobby_ids' => [1, 2, 3, 4, 6]], $profileRules)->fails());
+    }
+
 }

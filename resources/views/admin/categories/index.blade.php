@@ -42,6 +42,7 @@
                     <th>Category</th>
                     <th>Icon</th>
                     <th>Activities</th>
+                    <th>Active</th>
                     <th style="text-align: right;">Actions</th>
                 </tr>
             </thead>
@@ -60,6 +61,16 @@
                     <td>
                         <span class="badge badge-info">{{ $category->activities_count }} Activities</span>
                     </td>
+                    <td>
+                        <form method="POST" action="{{ route('admin.categories.active', $category->id) }}">
+                            @csrf
+                            @method('PATCH')
+                            <input type="hidden" name="active" value="{{ $category->active ? '0' : '1' }}">
+                            <button type="submit" class="btn btn-secondary btn-sm" role="switch" aria-checked="{{ $category->active ? 'true' : 'false' }}" aria-label="Active status for {{ $category->name }}">
+                                {{ $category->active ? 'Active' : 'Inactive' }}
+                            </button>
+                        </form>
+                    </td>
                     <td style="text-align: right;">
                         <div class="action-btn-group">
                             <a href="{{ route('admin.categories.show', $category->id) }}" class="btn btn-secondary btn-sm" title="View Details">
@@ -76,7 +87,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted);">No categories found.</td>
+                    <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">No categories found.</td>
                 </tr>
                 @endforelse
             </tbody>

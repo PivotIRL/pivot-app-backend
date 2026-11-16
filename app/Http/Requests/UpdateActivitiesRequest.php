@@ -31,9 +31,9 @@ class UpdateActivitiesRequest extends FormRequest
         return [
             'user_id' => 'required|integer|exists:users,id',
             'category_ids' => 'required_without:activities|array|min:5',
-            'category_ids.*' => 'required|integer|exists:hobbies,id|distinct',
+            'category_ids.*' => 'required|integer|exists:hobbies,id,active,1|distinct',
             'activities' => 'required_without:category_ids|array|min:5',
-            'activities.*' => 'required|string|exists:hobbies,name|distinct',
+            'activities.*' => 'required|string|exists:hobbies,name,active,1|distinct',
         ];
     }
 

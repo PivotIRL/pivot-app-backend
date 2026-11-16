@@ -104,14 +104,15 @@ class MembershipAccessService
 
     public function categories(User|Users $user): array
     {
-        $mandatoryId = Hobby::query()->whereRaw('LOWER(name) = ?', ['micro-movement'])->value('id');
+        $mandatoryId = Hobby::query()->where('active', true)->whereRaw('LOWER(name) = ?', ['micro-movement'])->value('id');
 
         return [
             'policy_version' => 1,
             'can_update' => true,
-            'categories' => Hobby::query()->orderBy('id')->get(['id', 'name'])->map(fn (Hobby $hobby) => [
+            'categories' => Hobby::query()->orderBy('id')->get(['id', 'name', 'active'])->map(fn (Hobby $hobby) => [
                 'id' => (string) $hobby->id,
                 'name' => $hobby->name,
+                'active' => $hobby->active,
                 'mandatory' => $mandatoryId !== null && (int) $mandatoryId === (int) $hobby->id,
             ])->all(),
         ];

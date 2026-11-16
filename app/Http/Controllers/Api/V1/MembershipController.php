@@ -136,8 +136,8 @@ class MembershipController extends Controller
         $count = $snapshot['limits']['category_count'];
         $data = $request->validate(['category_ids' => 'required|array|min:1'.($count === null ? '' : '|size:'.$count), 'category_ids.*' => 'required|string|distinct']);
         $ids = array_map('intval', $data['category_ids']);
-        $known = Hobby::query()->whereIn('id', $ids)->pluck('id')->map(fn ($id) => (int) $id)->all();
-        $mandatory = Hobby::query()->whereRaw('LOWER(name) = ?', ['micro-movement'])->value('id');
+        $known = Hobby::query()->where('active', true)->whereIn('id', $ids)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $mandatory = Hobby::query()->where('active', true)->whereRaw('LOWER(name) = ?', ['micro-movement'])->value('id');
         if (count($known) !== count($ids) || ($mandatory && ! in_array((int) $mandatory, $ids, true))) {
             throw ValidationException::withMessages(['category_ids' => 'Choose the required number of known categories and include Micro-Movement.']);
         }
