@@ -6,6 +6,27 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class ActivityRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        foreach (['sensory_tags', 'outcome_tag', 'mood_match'] as $field) {
+            $value = $this->input($field);
+            if (is_string($value)) {
+                $decoded = json_decode($value, true);
+                if (is_array($decoded)) $this->merge([$field => $decoded]);
+            }
+        }
+    }
+
+    public function activityData(): array
+    {
+        $data = $this->validated();
+        foreach (['sensory_tags', 'outcome_tag'] as $field) {
+            $tags = array_values(array_unique(array_map('trim', $data[$field] ?? [])));
+            $data[$field] = '['.implode(', ', array_map(fn ($tag) => "'".str_replace(["\\", "'"], ["\\\\", "\\'"], $tag)."'", $tags)).']';
+        }
+        return $data;
+    }
+
     public function authorize(): bool
     {
         return true;
@@ -17,8 +38,8 @@ class ActivityRequest extends FormRequest
             'hobby_id'                => 'required|integer|exists:hobbies,id',
             'activity_title'          => 'required|string|max:255',
             'instruction'             => 'required|string',
-            'activity_type'           => 'required|string|max:255',
-            'subcategory'             => 'required|string|max:255',
+            'activity_type'           => 'nullable|string|max:255',
+            'subcategory'             => 'nullable|string|max:255',
             'duration_minutes'        => 'required|integer|min:1',
             'tier'                    => 'required|in:1,2,3',
             'cost'                    => 'required|string|max:255',
@@ -26,12 +47,17 @@ class ActivityRequest extends FormRequest
             'min_age'                 => 'required|integer|min:0|max:120',
             'max_age'                 => 'required|integer|min:0|max:120|gte:min_age',
             'neurodivergent_friendly' => 'required|in:Yes,No,Partial',
-            'neurodivergent_notes'    => 'required|string',
-            'sensory_tags'            => 'required|string|max:255',
+            'neurodivergent_notes'    => 'nullable|string',
+            'sensory_tags' => 'nullable|array|max:50',
+            'sensory_tags.*' => 'required|string|max:100|distinct',
             'social_type'             => 'required|string|max:255',
             'energy_level'            => 'required|in:Low,Medium,High',
-            'outcome_tag'             => 'required|string|max:255',
-            'description'             => 'required|string',
+            'outcome_tag' => 'nullable|array|max:50',
+            'outcome_tag.*' => 'required|string|max:100|distinct',
+            'description' => 'required|string',
+            'time' => 'nullable|in:daytime,evening',
+            'mood_match' => 'nullable|array|max:50',
+            'mood_match.*' => 'required|string|max:100|distinct',
         ];
     }
 

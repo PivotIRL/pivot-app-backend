@@ -120,7 +120,7 @@ class ActivityController extends Controller
 
     public function store(ActivityRequest $request)
     {
-        $data = $request->validated();
+        $data = $request->activityData();
 
         Activity::create($data);
 
@@ -130,7 +130,7 @@ class ActivityController extends Controller
     public function update(ActivityRequest $request, $id)
     {
         $activity = Activity::findOrFail($id);
-        $data = $request->validated();
+        $data = $request->activityData();
 
         $activity->update($data);
 

@@ -128,13 +128,13 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Activity Type *</label>
-                        <input type="text" name="activity_type" class="form-control" value="{{ old('activity_type') }}" placeholder="e.g. Time-Bound" required>
+                        <label class="form-label">Activity Type</label>
+                        <select name="activity_type" class="form-control"> <option value="">None</option><option value="Time-Bound" @selected(old('activity_type', 'Time-Bound') === 'Time-Bound')>Time-Bound</option><option value="Micro" @selected(old('activity_type', 'Time-Bound') === 'Micro')>Micro</option></select>
                         @error('activity_type') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Subcategory *</label>
-                        <input type="text" name="subcategory" class="form-control" value="{{ old('subcategory') }}" required>
+                        <label class="form-label">Subcategory</label>
+                        <input type="text" name="subcategory" class="form-control" value="{{ old('subcategory') }}">
                         @error('subcategory') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
@@ -154,15 +154,29 @@
                         @error('tier') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group col-span-2">
                         <label class="form-label">Cost *</label>
-                        <input type="text" name="cost" class="form-control" value="{{ old('cost') }}" placeholder="e.g. Free, $10" required>
+                        <input type="text" name="cost" class="form-control" value="{{ old('cost', 'Free') }}" placeholder="e.g. Free, $10" required>
                         @error('cost') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
                         <label class="form-label">Location *</label>
-                        <input type="text" name="location" class="form-control" value="{{ old('location') }}" placeholder="Indoor/Outdoor" required>
+                        <select name="location" class="form-control" required><option value="Indoor" @selected(old('location', 'Indoor') === 'Indoor')>Indoor</option><option value="Outdoor" @selected(old('location', 'Indoor') === 'Outdoor')>Outdoor</option><option value="Indoor/Outdoor" @selected(old('location', 'Indoor') === 'Indoor/Outdoor')>Indoor/Outdoor</option></select>
                         @error('location') <small class="form-error">{{ $message }}</small> @enderror
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Time</label>
+                        <select name="time" id="create-time" class="form-control">
+                            <option value="">Select time</option>
+                            <option value="daytime" @selected(old('time') === 'daytime')>Daytime</option>
+                            <option value="evening" @selected(old('time') === 'evening')>Evening</option>
+                        </select>
+                        @error('time') <small class="form-error">{{ $message }}</small> @enderror
+                    </div>
+                    <div class="form-group col-span-2">
+                        <label class="form-label">Mood Match</label>
+                        @include('admin.activities.tag-input', ['field' => 'mood_match', 'inputId' => 'create-mood'])
+                        @error('mood_match') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group">
@@ -177,29 +191,29 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Social Type *</label>
-                        <input type="text" name="social_type" class="form-control" value="{{ old('social_type') }}" placeholder="Solo, Group, Partner" required>
+                        <select name="social_type" class="form-control" required><option value="Solo" @selected(old('social_type', 'Solo') === 'Solo')>Solo</option><option value="Group" @selected(old('social_type', 'Solo') === 'Group')>Group</option><option value="Solo/Group" @selected(old('social_type', 'Solo') === 'Solo/Group')>Solo/Group</option></select>
                         @error('social_type') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Min Age *</label>
-                        <input type="number" name="min_age" class="form-control" value="{{ old('min_age') }}" min="0" max="120" step="1" required>
+                        <input type="number" name="min_age" class="form-control" value="{{ old('min_age', 10) }}" min="0" max="120" step="1" required>
                         @error('min_age') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
                         <label class="form-label">Max Age *</label>
-                        <input type="number" name="max_age" class="form-control" value="{{ old('max_age') }}" min="0" max="120" step="1" required>
+                        <input type="number" name="max_age" class="form-control" value="{{ old('max_age', 90) }}" min="0" max="120" step="1" required>
                         @error('max_age') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Sensory Tags *</label>
-                        <input type="text" name="sensory_tags" class="form-control" value="{{ old('sensory_tags') }}" placeholder="Tactile, Visual" required>
+                        <label class="form-label">Sensory Tags</label>
+                        @include('admin.activities.tag-input', ['field' => 'sensory_tags', 'inputId' => 'create-sensory'])
                         @error('sensory_tags') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Outcome Tag *</label>
-                        <input type="text" name="outcome_tag" class="form-control" value="{{ old('outcome_tag') }}" required>
+                        <label class="form-label">Outcome Tag</label>
+                        @include('admin.activities.tag-input', ['field' => 'outcome_tag', 'inputId' => 'create-outcome'])
                         @error('outcome_tag') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
@@ -216,8 +230,8 @@
                     </div>
 
                     <div class="form-group col-span-2">
-                        <label class="form-label">Neurodivergent Notes *</label>
-                        <textarea name="neurodivergent_notes" class="form-control" rows="2" required>{{ old('neurodivergent_notes') }}</textarea>
+                        <label class="form-label">Neurodivergent Notes</label>
+                        <textarea name="neurodivergent_notes" class="form-control" rows="2">{{ old('neurodivergent_notes') }}</textarea>
                         @error('neurodivergent_notes') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
@@ -272,13 +286,13 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Activity Type *</label>
-                        <input type="text" name="activity_type" id="edit-type" class="form-control" value="{{ old('activity_type') }}" required>
+                        <label class="form-label">Activity Type</label>
+                        <select name="activity_type" id="edit-type" class="form-control"> <option value="">None</option><option value="Time-Bound" @selected(old('activity_type', 'Time-Bound') === 'Time-Bound')>Time-Bound</option><option value="Micro" @selected(old('activity_type', 'Time-Bound') === 'Micro')>Micro</option></select>
                         @error('activity_type') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Subcategory *</label>
-                        <input type="text" name="subcategory" id="edit-subcategory" class="form-control" value="{{ old('subcategory') }}" required>
+                        <label class="form-label">Subcategory</label>
+                        <input type="text" name="subcategory" id="edit-subcategory" class="form-control" value="{{ old('subcategory') }}">
                         @error('subcategory') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
@@ -298,15 +312,29 @@
                         @error('tier') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group col-span-2">
                         <label class="form-label">Cost *</label>
-                        <input type="text" name="cost" id="edit-cost" class="form-control" value="{{ old('cost') }}" required>
+                        <input type="text" name="cost" id="edit-cost" class="form-control" value="{{ old('cost', 'Free') }}" required>
                         @error('cost') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
                         <label class="form-label">Location *</label>
-                        <input type="text" name="location" id="edit-location" class="form-control" value="{{ old('location') }}" required>
+                        <select name="location" id="edit-location" class="form-control" required><option value="Indoor" @selected(old('location', 'Indoor') === 'Indoor')>Indoor</option><option value="Outdoor" @selected(old('location', 'Indoor') === 'Outdoor')>Outdoor</option><option value="Indoor/Outdoor" @selected(old('location', 'Indoor') === 'Indoor/Outdoor')>Indoor/Outdoor</option></select>
                         @error('location') <small class="form-error">{{ $message }}</small> @enderror
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Time</label>
+                        <select name="time" id="edit-time" class="form-control">
+                            <option value="">Select time</option>
+                            <option value="daytime" @selected(old('time') === 'daytime')>Daytime</option>
+                            <option value="evening" @selected(old('time') === 'evening')>Evening</option>
+                        </select>
+                        @error('time') <small class="form-error">{{ $message }}</small> @enderror
+                    </div>
+                    <div class="form-group col-span-2">
+                        <label class="form-label">Mood Match</label>
+                        @include('admin.activities.tag-input', ['field' => 'mood_match', 'inputId' => 'edit-mood'])
+                        @error('mood_match') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group">
@@ -321,29 +349,29 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Social Type *</label>
-                        <input type="text" name="social_type" id="edit-social" class="form-control" value="{{ old('social_type') }}" required>
+                        <select name="social_type" id="edit-social" class="form-control" required><option value="Solo" @selected(old('social_type', 'Solo') === 'Solo')>Solo</option><option value="Group" @selected(old('social_type', 'Solo') === 'Group')>Group</option><option value="Solo/Group" @selected(old('social_type', 'Solo') === 'Solo/Group')>Solo/Group</option></select>
                         @error('social_type') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Min Age *</label>
-                        <input type="number" name="min_age" id="edit-min-age" class="form-control" value="{{ old('min_age') }}" min="0" max="120" step="1" required>
+                        <input type="number" name="min_age" id="edit-min-age" class="form-control" value="{{ old('min_age', 10) }}" min="0" max="120" step="1" required>
                         @error('min_age') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
                         <label class="form-label">Max Age *</label>
-                        <input type="number" name="max_age" id="edit-max-age" class="form-control" value="{{ old('max_age') }}" min="0" max="120" step="1" required>
+                        <input type="number" name="max_age" id="edit-max-age" class="form-control" value="{{ old('max_age', 90) }}" min="0" max="120" step="1" required>
                         @error('max_age') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Sensory Tags *</label>
-                        <input type="text" name="sensory_tags" id="edit-sensory" class="form-control" value="{{ old('sensory_tags') }}" required>
+                        <label class="form-label">Sensory Tags</label>
+                        @include('admin.activities.tag-input', ['field' => 'sensory_tags', 'inputId' => 'edit-sensory'])
                         @error('sensory_tags') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Outcome Tag *</label>
-                        <input type="text" name="outcome_tag" id="edit-outcome" class="form-control" value="{{ old('outcome_tag') }}" required>
+                        <label class="form-label">Outcome Tag</label>
+                        @include('admin.activities.tag-input', ['field' => 'outcome_tag', 'inputId' => 'edit-outcome'])
                         @error('outcome_tag') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
@@ -360,8 +388,8 @@
                     </div>
 
                     <div class="form-group col-span-2">
-                        <label class="form-label">Neurodivergent Notes *</label>
-                        <textarea name="neurodivergent_notes" id="edit-nd-notes" class="form-control" rows="2" required>{{ old('neurodivergent_notes') }}</textarea>
+                        <label class="form-label">Neurodivergent Notes</label>
+                        <textarea name="neurodivergent_notes" id="edit-nd-notes" class="form-control" rows="2">{{ old('neurodivergent_notes') }}</textarea>
                         @error('neurodivergent_notes') <small class="form-error">{{ $message }}</small> @enderror
                     </div>
 
@@ -406,6 +434,7 @@
     </div>
 </div>
 
+@include('admin.activities.tag-script')
 <script>
     @if ($errors->any())
         window.addEventListener('DOMContentLoaded', () => {
@@ -420,24 +449,26 @@
 
         document.getElementById('edit-title').value = activity.activity_title ?? '';
         document.getElementById('edit-hobby').value = activity.hobby_id ?? ''; // Populates category select
-        document.getElementById('edit-type').value = activity.activity_type ?? '';
+        setActivitySelectOrInput('edit-type', activity.activity_type ?? 'Time-Bound');
         document.getElementById('edit-subcategory').value = activity.subcategory ?? '';
         document.getElementById('edit-duration').value = activity.duration_minutes ?? '';
         document.getElementById('edit-tier').value = activity.tier ?? '';
-        document.getElementById('edit-cost').value = activity.cost ?? '';
-        document.getElementById('edit-location').value = activity.location ?? '';
+        setActivitySelectOrInput('edit-cost', activity.cost ?? 'Free');
+        setActivitySelectOrInput('edit-location', activity.location ?? 'Indoor');
         document.getElementById('edit-energy').value = activity.energy_level ?? '';
-        document.getElementById('edit-social').value = activity.social_type ?? '';
-        document.getElementById('edit-min-age').value = activity.min_age ?? '';
-        document.getElementById('edit-max-age').value = activity.max_age ?? '';
-        document.getElementById('edit-sensory').value = activity.sensory_tags ?? '';
-        document.getElementById('edit-outcome').value = activity.outcome_tag ?? '';
+        setActivitySelectOrInput('edit-social', activity.social_type ?? 'Solo');
+        setActivitySelectOrInput('edit-min-age', activity.min_age ?? 10);
+        setActivitySelectOrInput('edit-max-age', activity.max_age ?? 90);
+        setActivityTags('edit-sensory', activity.sensory_tags);
+        setActivityTags('edit-outcome', activity.outcome_tag);
         document.getElementById('edit-description').value = activity.description ?? '';
         document.getElementById('edit-instruction').value = activity.instruction ?? '';
         document.getElementById('edit-nd-notes').value = activity.neurodivergent_notes ?? '';
 
         document.getElementById('edit-nd').value = activity.neurodivergent_friendly ?? '';
 
+        setActivitySelectOrInput('edit-time', activity.time ?? '');
+        setActivityTags('edit-mood', activity.mood_match);
         openModal('edit-activity-modal');
     }
 

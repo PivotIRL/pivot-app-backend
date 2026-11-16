@@ -55,7 +55,7 @@ class ActivityRepository implements ActivityRepositoryInterface
             });
         }
 
-        $allowedSocialTypes = ['Solo', 'Optional Group'];
+        $allowedSocialTypes = ['Solo', 'Solo/Group', 'Optional Group'];
 
         if (!empty($filters['social_type'])) {
             $requestedSocialTypes = array_values(array_filter(array_map(function ($type) {
@@ -130,7 +130,7 @@ class ActivityRepository implements ActivityRepositoryInterface
     {
         $query = Activity::query()
             ->with('hobby')
-            ->whereIn('social_type', ['Optional Group', 'Group 2-10']);
+            ->whereIn('social_type', ['Group', 'Solo/Group', 'Optional Group', 'Group 2-10']);
 
         $package = $user ? app(MembershipAccessService::class)->snapshot($user)['effective_package'] : null;
         $query->whereIn('tier', $package === 'premium' ? [1, 2, 3] : ($package === 'standard' ? [1, 2] : [1]));

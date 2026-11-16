@@ -8,7 +8,7 @@ use Tests\TestCase;
 
 class AdminActivityEnergyLevelValidationTest extends TestCase
 {
-    public function test_all_activity_fields_are_required(): void
+    public function test_only_core_activity_fields_are_required(): void
     {
         $rules = (new ActivityRequest())->rules();
         $requiredFields = array_keys(array_filter(
@@ -20,8 +20,6 @@ class AdminActivityEnergyLevelValidationTest extends TestCase
             'hobby_id',
             'activity_title',
             'instruction',
-            'activity_type',
-            'subcategory',
             'duration_minutes',
             'tier',
             'cost',
@@ -29,12 +27,12 @@ class AdminActivityEnergyLevelValidationTest extends TestCase
             'min_age',
             'max_age',
             'neurodivergent_friendly',
-            'neurodivergent_notes',
-            'sensory_tags',
+            'sensory_tags.*',
             'social_type',
             'energy_level',
-            'outcome_tag',
+            'outcome_tag.*',
             'description',
+            'mood_match.*',
         ], $requiredFields);
         $this->assertFalse(Validator::make([], $rules)->passes());
     }
@@ -62,4 +60,19 @@ class AdminActivityEnergyLevelValidationTest extends TestCase
         $this->assertTrue(Validator::make(['min_age' => 16, 'max_age' => 16], $rules)->passes());
         $this->assertFalse(Validator::make(['min_age' => -1, 'max_age' => 16], $rules)->passes());
     }
+    public function test_tag_payloads_are_serialized_for_existing_columns(): void
+    {
+        $request = new ActivityRequest();
+        $data = ['sensory_tags' => ['Sound', 'Sight', 'Touch'], 'outcome_tag' => ['Focus', 'Social Connection'], 'mood_match' => ['Happy', 'Good']];
+        $rules = array_intersect_key($request->rules(), array_flip(['sensory_tags', 'sensory_tags.*', 'outcome_tag', 'outcome_tag.*', 'mood_match', 'mood_match.*']));
+        $request->setValidator(Validator::make($data, $rules));
+        $saved = $request->activityData();
+        $this->assertSame("['Sound', 'Sight', 'Touch']", $saved['sensory_tags']);
+        $this->assertSame("['Focus', 'Social Connection']", $saved['outcome_tag']);
+        $model = new \App\Models\Activity($saved);
+        $this->assertSame(['Happy', 'Good'], json_decode($model->getAttributes()['mood_match'], true));
+        $this->assertTrue(Validator::make([], $rules)->passes());
+        $this->assertFalse(Validator::make(['sensory_tags' => ['Sound', 'Sound']], $rules)->passes());
+    }
+
 }
