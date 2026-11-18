@@ -18,6 +18,15 @@ class PromotionalMembershipTest extends TestCase {
         $this->assertSame('premium', $result['effective_package']);
         $this->assertSame($end, $result['access_ends_at']->getTimestampMs());
         $this->assertNull($result['payment_path']);
+        $this->assertSame('promotional', $result['source']);
+    }
+    public function test_standard_android_grant_is_recognized(): void {
+        foreach (['Standard Android', 'standard_android', 'standard_andriod'] as $alias) {
+            $result = $this->candidate(['entitlements' => ['items' => [['state' => 'active', 'lookup_key' => $alias]]]]);
+            $this->assertSame('standard', $result['effective_package']);
+            $this->assertSame('promotional', $result['source']);
+            $this->assertNull($result['payment_path']);
+        }
     }
     public function test_lifetime_promotion_requires_explicit_null_end(): void {
         $result = $this->candidate(['ends_at' => null]);

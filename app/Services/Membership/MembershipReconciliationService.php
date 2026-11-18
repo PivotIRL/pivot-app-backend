@@ -96,7 +96,7 @@ class MembershipReconciliationService
 
         // This was a successful, complete RevenueCat read. Retire store access when no current
         // verified entitlement remains; do not alter legacy or account-trial access here.
-        if ($access?->access_source === 'store') {
+        if (in_array($access?->access_source, ['store', 'promotional'], true)) {
             DB::table('account_access')->where('user_id', $user->id)->update([
                 'effective_package' => null,
                 'access_status' => 'expired',
@@ -253,7 +253,7 @@ class MembershipReconciliationService
         if (! $lifetime && (! $end || ! $end->isFuture())) return null;
         return [
             'selected_package' => $package, 'effective_package' => $package,
-            'payment_path' => $lifetime ? 'lifetime' : null, 'status' => 'active', 'source' => 'store',
+            'payment_path' => $lifetime ? 'lifetime' : null, 'status' => 'active', 'source' => 'promotional',
             'product_id' => $item['store_product_id'] ?? $item['product_id'] ?? null,
             'trial_ends_at' => null, 'access_ends_at' => $end,
             'rank' => $package === 'premium' ? 2 : 1, 'expires_at' => $end,
@@ -269,7 +269,7 @@ class MembershipReconciliationService
             if (($entitlement['state'] ?? null) !== 'active') continue;
             $lookup = strtolower((string) ($entitlement['lookup_key'] ?? ''));
             if (in_array($lookup, ['premium', 'premium_android', 'premium android', 'tier3', 'tier_3', 'tier3_android', 'tier_3_android'], true)) return 'premium';
-            if (in_array($lookup, ['standard', 'standard_andriod', 'tier2', 'tier_2', 'tier2_android', 'tier_2_android'], true)) $package = 'standard';
+            if (in_array($lookup, ['standard', 'standard_android', 'standard android', 'standard_andriod', 'tier2', 'tier_2', 'tier2_android', 'tier_2_android'], true)) $package = 'standard';
         }
         return $package;
     }
