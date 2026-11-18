@@ -9,5 +9,7 @@ return [
     ],
     'full_trial_premium' => (bool) env('MEMBERSHIP_FULL_TRIAL_PREMIUM', true),
     'announcement_version' => 'standard-premium-v1',
+    // Numeric backend user IDs reserved for sandbox testing on a production backend.
+    'sandbox_user_ids' => env('REVENUECAT_SANDBOX_USER_IDS', ''),
     'store_environment' => env('REVENUECAT_STORE_ENVIRONMENT', 'production'),
 ];

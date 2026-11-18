@@ -15,6 +15,12 @@ class MembershipAccessService
     public function snapshot(User|Users $user): array
     {
         $row = DB::table('account_access')->where('user_id', $user->id)->first();
+        $environment = app(MembershipEnvironment::class)->forUser($user);
+        // A tester being removed from the allowlist must not retain cached sandbox access.
+        if ($row && in_array($row->access_source, ['store', 'promotional'], true)
+            && ($row->store_environment ?? strtolower((string) config('membership.store_environment', 'production'))) !== $environment) {
+            $row = null;
+        }
         $legacySubscription = $user->subscription;
         $trial = DB::table('membership_trials')->where('user_id', $user->id)->first();
         $now = now()->utc();
@@ -29,7 +35,7 @@ class MembershipAccessService
             ? ($legacyChoice['path'] === 'lifetime' || $legacyExpiryValid)
             : (bool) $legacyExpiryValid;
         $legacyPaid = ! $row && $legacySubscription?->active && in_array((int) $legacySubscription->tier_id, [2, 3], true)
-            && strtolower((string) ($legacySubscription->environment ?? config('membership.store_environment', 'production'))) === strtolower((string) config('membership.store_environment', 'production'))
+            && strtolower((string) ($legacySubscription->environment ?? config('membership.store_environment', 'production'))) === $environment
             && $legacyEntitlementValid;
         $legacyPackage = $legacyPaid ? $legacyPackageHint : null;
         $status = $row->access_status ?? ($legacyPaid ? 'active' : 'none');

@@ -23,7 +23,7 @@ class LegacyPackReconciliationController extends Controller
         $userId = $request->user()->id;
         $known = ChallengePacksWebhook::where('user_id', $userId)
             ->whereIn('transaction_id', array_column($data['packs'], 'transaction_id'))->pluck('transaction_id')->all();
-        $environment = strtolower((string) config('membership.store_environment', 'production'));
+        $environment = app(\App\Services\Membership\MembershipEnvironment::class)->forUser($request->user());
         // Network verification must run outside balance locks. Never accept a customer ID from the device.
         $receipts = count($known) === count($data['packs']) ? ['ok' => true, 'items' => []]
             : $revenueCat->fetchCustomerPackPurchases((string) ($request->user()->revenuecat_user_id ?: $userId), $environment);

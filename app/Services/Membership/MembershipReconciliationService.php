@@ -20,7 +20,7 @@ class MembershipReconciliationService
 
     public function reconcile(User|Users $user): void
     {
-        $environment = strtolower((string) config('membership.store_environment', 'production'));
+        $environment = app(MembershipEnvironment::class)->forUser($user);
         $customerId = (string) ($user->revenuecat_user_id ?: $user->id);
         $subscriptionUpdatedAt = DB::table('subscriptions')->where('user_id', $user->id)->value('updated_at');
         $accessUpdatedAt = DB::table('account_access')->where('user_id', $user->id)->value('updated_at');
@@ -391,6 +391,7 @@ class MembershipReconciliationService
         DB::table('account_access')->updateOrInsert(['user_id' => $user->id], [
             'selected_package' => $candidate['selected_package'], 'effective_package' => $candidate['effective_package'],
             'payment_path' => $candidate['payment_path'], 'access_status' => $candidate['status'],
+            'store_environment' => app(MembershipEnvironment::class)->forUser($user),
             'access_source' => $candidate['source'], 'product_id' => $candidate['product_id'],
             'trial_ends_at' => $candidate['trial_ends_at'], 'access_ends_at' => $candidate['access_ends_at'],
             'updated_at' => now(), 'created_at' => now(),
