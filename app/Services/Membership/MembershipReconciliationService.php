@@ -20,6 +20,19 @@ class MembershipReconciliationService
 
     public function reconcile(User|Users $user): void
     {
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            try {
+                $this->reconcileOnce($user);
+                return;
+            } catch (MembershipReconciliationConflict $conflict) {
+                if ($attempt === 2) throw $conflict;
+                // Fetch again outside the transaction; never apply the stale store result.
+            }
+        }
+    }
+
+    private function reconcileOnce(User|Users $user): void
+    {
         $environment = app(MembershipEnvironment::class)->forUser($user);
         $customerId = (string) ($user->revenuecat_user_id ?: $user->id);
         $subscriptionUpdatedAt = DB::table('subscriptions')->where('user_id', $user->id)->value('updated_at');
@@ -40,7 +53,7 @@ class MembershipReconciliationService
             $currentSubscriptionUpdatedAt = DB::table('subscriptions')->where('user_id', $user->id)->value('updated_at');
             $currentAccessUpdatedAt = DB::table('account_access')->where('user_id', $user->id)->value('updated_at');
             if ($currentSubscriptionUpdatedAt !== $subscriptionUpdatedAt || $currentAccessUpdatedAt !== $accessUpdatedAt) {
-                throw new RuntimeException('Membership changed during reconciliation. Retry to verify the latest purchase state.');
+                throw new MembershipReconciliationConflict('Membership changed during reconciliation. Retry to verify the latest purchase state.');
             }
             $this->applyState($user, $state, $environment);
             // Do not release a trial while an unrecognized subscription still needs mapping.

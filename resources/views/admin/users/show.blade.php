@@ -67,35 +67,25 @@
     <div class="card">
         <h3 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 1rem;">Subscription Status</h3>
         @php
-        $sub = $user->subscriptions->sortByDesc('updated_at')->first();
-        $inactiveReason = match ($sub?->type) {
-        'EXPIRATION' => 'Subscription expired',
-        'CANCELLATION' => 'Subscription cancelled',
-        'BILLING_ISSUE' => 'Billing issue',
-        'NON_RENEWING_PURCHASE' => 'Non-renewing purchase expired',
-        default => $sub?->active === false ? 'Subscription marked inactive' : null,
-        };
+            $active = in_array($membership['access_status'], ['active', 'trial'], true);
+            $plan = $active ? $membership['effective_package'] : $membership['selected_package'];
+            $period = $membership['payment_path'];
+            $label = $plan ? ucfirst($plan) . ($period ? ' ' . ucfirst($period) : '') : 'No membership';
         @endphp
-        @if($sub?->active)
-        <div style="background: var(--bg-hover); padding: 1rem; border-radius: 0.5rem; border-left: 4px solid var(--primary);">
-            <div style="font-weight: 600; margin-bottom: 0.25rem;">Active Subscription</div>
-            <div style="font-size: 0.875rem; margin-bottom: 0.25rem;">Tier: {{ $sub->tier?->name ?? 'Unassigned' }}</div>
-            <div style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem;">Started on {{ $sub->created_at->format('M d, Y') }}</div>
-        </div>
-        @elseif($sub)
-        <div style="background: var(--bg-hover); padding: 1rem; border-radius: 0.5rem; border-left: 4px solid var(--danger);">
-            <div style="font-weight: 600; margin-bottom: 0.25rem;">Inactive Subscription</div>
-            <div style="font-size: 0.875rem; margin-bottom: 0.25rem;">Reason: {{ $inactiveReason }}</div>
-            <div style="font-size: 0.875rem; margin-bottom: 0.25rem;">Tier: {{ $sub->tier?->name ?? 'Unassigned' }}</div>
-            @if($sub->expires_at)
-            <div style="font-size: 0.875rem; color: var(--text-muted);">Expired on {{ $sub->expires_at->format('M d, Y') }}</div>
+        <div style="background: var(--bg-hover); padding: 1rem; border-radius: 0.5rem; border-left: 4px solid var(--{{ $active ? 'primary' : 'border-color' }});">
+            <div style="font-weight: 600; margin-bottom: 0.25rem;">{{ $label }}</div>
+            <div>Status: {{ ucfirst(str_replace('_', ' ', $membership['access_status'])) }}</div>
+            <div>Environment: {{ ucfirst($membershipEnvironment) }}</div>
+            @if($membership['access_source'])
+                <div>Source: {{ ucfirst(str_replace('_', ' ', $membership['access_source'])) }}</div>
             @endif
+            @if($membership['access_ends_at'])
+                <div>{{ $active ? 'Access until' : 'Access ended' }}: {{ \Illuminate\Support\Carbon::parse($membership['access_ends_at'])->utc()->format('M d, Y H:i') }} UTC</div>
+            @elseif($active && $period === 'lifetime')
+                <div>No expiry</div>
+            @endif
+            <div style="font-size: 0.875rem; color: var(--text-muted); margin-top: 0.5rem;">Latest verified membership record</div>
         </div>
-        @else
-        <div style="padding: 1rem; text-align: center; color: var(--text-muted); background: var(--bg-hover); border-radius: 0.5rem;">
-            No subscription record found.
-        </div>
-        @endif
     </div>
 </div>
 
