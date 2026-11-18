@@ -148,7 +148,7 @@ Route::prefix('v1')->group(function () {
         Route::get('user-activities/all', [ActivityController::class, 'userActivitiesAll']);
         Route::get('search-activities', [ActivityController::class, 'searchActivities']);
         // User Hobby Management Routes
-        Route::apiResource('user/hobbies', UserHobbyController::class);
+        Route::apiResource('user/hobbies', UserHobbyController::class)->names('user.hobbies');
 
         // Research Management Routes
         Route::apiResource('research', ResearchController::class);

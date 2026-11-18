@@ -59,6 +59,37 @@ class MembershipAdminAndLifetimeTest extends TestCase
             ->assertJsonPath('product_id', 'premium_android_lifetime');
     }
 
+    public function test_subscription_directory_uses_verified_memberships_and_environment(): void
+    {
+        $user = $this->member();
+        $tier = Tier::firstOrCreate(['name' => '1']);
+        Subscription::create(['user_id' => $user->id, 'tier_id' => $tier->id, 'active' => true]);
+        DB::table('account_access')->where('user_id', $user->id)->update([
+            'payment_path' => 'lifetime', 'product_id' => 'premium_android_lifetime', 'access_ends_at' => null,
+        ]);
+        $newMember = $this->member(); // No legacy subscriptions row.
+        DB::table('account_access')->where('user_id', $newMember->id)->update(['access_ends_at' => now()->subDay()]);
+        DB::table('verified_purchases')->insert([
+            'user_id' => $user->id, 'store' => 'play_store', 'environment' => 'sandbox',
+            'transaction_id' => 'sandbox-lifetime', 'product_id' => 'premium_android_lifetime',
+            'package' => 'premium', 'payment_path' => 'lifetime',
+            'payload' => json_encode(['total_revenue_in_usd' => ['gross' => 999]]),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $rc = Mockery::mock(RevenueCatService::class);
+        $rc->shouldReceive('getMetricsOverview')->andReturn(['ok' => false, 'metrics' => []]);
+        $rc->shouldNotReceive('getCustomerSubscriptions');
+        $this->app->instance(RevenueCatService::class, $rc);
+        $admin = Admin::create(['name' => 'Admin', 'email' => uniqid().'@example.test', 'password' => bcrypt('test')]);
+        $this->actingAs($admin, 'admin')->get('/dashboard/subscriptions')->assertOk()
+            ->assertSee('Premium Lifetime')->assertSee('No expiry')->assertSee('Premium Monthly')->assertSee('Expired')
+            ->assertSee('Production')->assertSee('Manage membership features')->assertDontSee('$999.00')
+            ->assertViewHas('total', 2)
+            ->assertViewHas('subscriptions', fn ($data) => collect($data['items'])->firstWhere('user_email', $user->email)['gross_revenue'] === null);
+        $this->get('/dashboard/subscriptions?search='.urlencode($newMember->email))->assertOk()
+            ->assertViewHas('total', 1)->assertDontSee('Premium Lifetime');
+    }
+
     public function test_concurrent_reconciliation_refetches_instead_of_applying_stale_state(): void
     {
         $user = $this->member();
