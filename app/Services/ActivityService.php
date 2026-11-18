@@ -40,9 +40,9 @@ class ActivityService
         $this->repository->delete($activity);
     }
 
-    public function groupActivities()
+    public function groupActivities($user = null)
     {
-        return $this->repository->groupActivities();
+        return $this->repository->groupActivities($user);
     }
 
     public function userTierActivities($user)

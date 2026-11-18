@@ -30,12 +30,15 @@ use App\Http\Controllers\GroupChallengeController;
 use App\Http\Controllers\GroupChallengeSessionController;
 use App\Http\Controllers\PromoCodeController;
 use App\Http\Controllers\Api\EventController;
+use App\Http\Controllers\Api\V1\MembershipController;
+use App\Http\Controllers\Api\V1\ChallengeReservationController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
 Route::prefix('v1')->group(function () {
+    Route::get('/app-update-policy', [\App\Http\Controllers\AppUpdateController::class, 'show'])->middleware('throttle:60,1');
 
     Route::post('/auth/register', [AuthController::class, 'register']);
     Route::post('/auth/login', [AuthController::class, 'login']);
@@ -60,6 +63,29 @@ Route::prefix('v1')->group(function () {
     Route::get('leaderboard/emotion', [EmotionLogsController::class, 'counts']);
 
     Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/access', [MembershipController::class, 'access']);
+        Route::post('/notification-devices', [\App\Http\Controllers\AnnouncementController::class, 'register']);
+        Route::get('/announcements', [\App\Http\Controllers\AnnouncementController::class, 'index']);
+        Route::post('/announcements/{id}/read', [\App\Http\Controllers\AnnouncementController::class, 'read']);
+        Route::get('/membership/plans', fn (\App\Services\Membership\MembershipPlanCatalog $catalog) => response()->json($catalog->response()));
+        Route::post('/trial-checkouts', [MembershipController::class, 'trialCheckout']);
+        Route::post('/trial-checkouts/cancel', [MembershipController::class, 'cancelTrialCheckout']);
+        Route::post('/trials/start', [MembershipController::class, 'startTrial']);
+        Route::get('/access/categories', [MembershipController::class, 'categories']);
+        Route::put('/access/categories', [MembershipController::class, 'updateCategories']);
+        Route::post('/access/announcements/acknowledge', [MembershipController::class, 'acknowledge']);
+        Route::post('/access/reconcile', [MembershipController::class, 'reconcile']);
+        Route::post('/membership/purchase-checkouts', [MembershipController::class, 'purchaseCheckout']);
+        Route::post('/membership/change-checkouts', [MembershipController::class, 'changeCheckout']);
+        Route::post('/membership/attempt-status', [MembershipController::class, 'attemptStatus']);
+        Route::post('/membership/checkout-recovery', [MembershipController::class, 'recoverCheckout']);
+        Route::post('/membership/checkouts/cancel', [MembershipController::class, 'cancelCheckout']);
+        Route::post('/challenge-reservations', [ChallengeReservationController::class, 'reserve']);
+        Route::get('/challenge-reservations', [ChallengeReservationController::class, 'index']);
+        Route::post('/challenge-reservations/{reservationId}/resume', [ChallengeReservationController::class, 'resume']);
+        Route::post('/challenge-reservations/{reservationId}/complete', [ChallengeReservationController::class, 'complete']);
+        Route::post('/challenge-reservations/{reservationId}/abandon', [ChallengeReservationController::class, 'abandon']);
+
         Route::post('promo-codes/validate', [PromoCodeController::class, 'validateCode']);
         Route::post('promo-codes/confirm', [PromoCodeController::class, 'confirm']);
 
@@ -68,11 +94,13 @@ Route::prefix('v1')->group(function () {
         Route::get('/user/emergency', [AuthController::class, 'currentUserCountry']);
         Route::patch('/user/status', [AuthController::class, 'updateStatus']);
         Route::post('/user/fcm-token', [AuthController::class, 'updateFcmToken']);
+        Route::post('/user/activity', [AuthController::class, 'recordActivity']);
         Route::delete('/user/delete', [AuthController::class, 'deleteAccount']);
 
         // Challenge pack routes
         Route::get('challenge-pack', [ChallengePackController::class, 'index']);
         Route::patch('challenge-pack', [ChallengePackController::class, 'decrementRemaining']);
+        Route::post('challenge-pack/reconcile-legacy', \App\Http\Controllers\Api\V1\LegacyPackReconciliationController::class);
     
         // Group challenge routes
         Route::post('group-challenges/start', [GroupChallengeController::class, 'start']);
@@ -159,7 +187,8 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('goal-log', GoalLogsController::class);
 
         // Emotion Logs Routes
-        Route::apiResource('emotion-log', EmotionLogsController::class);
+        Route::get('emotion-log/counts', [EmotionLogsController::class, 'counts']);
+        Route::apiResource('emotion-log', EmotionLogsController::class)->only(['store']);
 
         // Streak Logs Routes
         Route::apiResource('streak-log', StreakLogsController::class);

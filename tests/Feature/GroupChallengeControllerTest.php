@@ -302,12 +302,16 @@ class GroupChallengeControllerTest extends TestCase
             ->assertJsonFragment([
                 'host_id' => $host->id,
                 'host_name' => $host->name,
+                'user_id' => $host->id,
+                'user_name' => $host->name,
                 'total_challenge_count' => 1,
                 'total_duration_minutes' => 25,
             ])
             ->assertJsonFragment([
                 'host_id' => $teammate->id,
                 'host_name' => $teammate->name,
+                'user_id' => $teammate->id,
+                'user_name' => $teammate->name,
                 'total_challenge_count' => 1,
                 'total_duration_minutes' => 25,
             ]);

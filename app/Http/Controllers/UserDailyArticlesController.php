@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Research;
 use App\Models\UserDailyArticle;
 use App\Models\UserArticle;
+use App\Http\Resources\ResearchResource;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -23,7 +24,7 @@ class UserDailyArticlesController extends Controller
 
         if ($existingAssignment) {
             $article = Research::find($existingAssignment->article_id);
-            return response()->json($article);
+            return response()->json(new ResearchResource($article));
         }
 
         $alreadySeenIds = UserDailyArticle::where('user_id', $user->id)
@@ -50,7 +51,7 @@ class UserDailyArticlesController extends Controller
             'assigned_date' => $today,
         ]);
 
-        return response()->json($newArticle);
+        return response()->json(new ResearchResource($newArticle));
     }
     
     public function getArticleLibrary(Request $request)
@@ -63,7 +64,7 @@ class UserDailyArticlesController extends Controller
             ->select('research_articles.*', 'user_articles.created_at', 'user_articles.id as user_article_id')
             ->get();
 
-        return response()->json($unlockedArticles);
+        return ResearchResource::collection($unlockedArticles);
     }
 
     public function addArticleLibrary(Request $request)

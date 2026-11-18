@@ -29,7 +29,7 @@ class EventController extends Controller
             'description' => 'required|string',
             'date_and_time' => 'required|date',
             'location' => 'required|string|max:255',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:10240',
             'guests' => 'nullable|string',
             'redirect_link' => 'nullable|url|max:255',
         ]);
@@ -56,7 +56,7 @@ class EventController extends Controller
             'description' => 'required|string',
             'date_and_time' => 'required|date',
             'location' => 'required|string|max:255',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:10240',
             'guests' => 'nullable|string',
             'redirect_link' => 'nullable|url|max:255',
         ]);

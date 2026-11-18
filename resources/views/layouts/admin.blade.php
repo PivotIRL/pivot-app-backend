@@ -84,16 +84,18 @@ use Illuminate\Support\Facades\Auth;
                     <span>App Analytics</span>
                 </a>
 
-                <!-- Monetization Section -->
+                <a href="{{ route('admin.announcements.index') }}" class="nav-item {{ request()->routeIs('admin.announcements.*') ? 'active' : '' }}"><i class="fa-solid fa-bell"></i><span>Notifications</span></a>
+<a href="{{ route('admin.app-updates.index') }}" class="nav-item {{ request()->routeIs('admin.app-updates.*') ? 'active' : '' }}"><i class="fa-solid fa-download"></i><span>Required App Updates</span></a>
+<!-- Monetization Section -->
                 <div class="nav-section-title">Monetization</div>
                 <a href="{{ route('admin.subscriptions.index') }}" class="nav-item {{ request()->routeIs('admin.subscriptions.*') ? 'active' : '' }}">
                     <i class="fa-solid fa-credit-card"></i>
                     <span>Subscriptions</span>
                 </a>
-                <a href="#" class="nav-item {{ request()->routeIs('admin.payment-history.*') ? 'active' : '' }}">
+                <!-- <a href="#" class="nav-item {{ request()->routeIs('admin.payment-history.*') ? 'active' : '' }}">
                     <i class="fa-solid fa-receipt"></i>
                     <span>Payment History</span>
-                </a>
+                </a> -->
                 <a href="{{ route('admin.promo-codes.index') }}" class="nav-item {{ request()->routeIs('admin.promo-codes.*') ? 'active' : '' }}">
                     <i class="fa-solid fa-ticket"></i>
                     <span>Promo Codes</span>

@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Events\GroupChallengeStatusUpdated;
-use App\Models\Users;
+use App\Models\User;
 use App\Models\TeamConnection;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -82,7 +82,7 @@ class AuthService
         return $this->authRepositoryInterface->getCurrentUser();
     }
 
-    public function updateCurrentUserStatus(string $status): Users
+    public function updateCurrentUserStatus(string $status): User
     {
         $user = $this->authRepositoryInterface->getCurrentUser();
 
@@ -93,7 +93,7 @@ class AuthService
         return $this->updateStatusForUser((int) $user->id, $status);
     }
 
-    public function updateCurrentUserFcmToken(string $fcmToken): Users
+    public function updateCurrentUserFcmToken(string $fcmToken): User
     {
         $user = $this->authRepositoryInterface->getCurrentUser();
 
@@ -109,7 +109,7 @@ class AuthService
      * currently authenticated. Used by group challenge flows to flip a
      * participant's status (e.g. to `in_challenge`) on their behalf.
      */
-    public function updateStatusForUser(int $userId, string $status): Users
+    public function updateStatusForUser(int $userId, string $status): User
     {
         $updatedUser = $this->authRepositoryInterface->updateStatusByUserId($userId, $status);
 
@@ -212,7 +212,7 @@ class AuthService
 
         $user = $this->authRepositoryInterface->findByEmail($data['email']);
         if ($user) {
-            $user->tokens()->delete();
+            $user->revokeMobileTokens();
         }
     }
 

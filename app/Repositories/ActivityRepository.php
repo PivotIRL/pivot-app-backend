@@ -7,6 +7,9 @@ use App\Repositories\Contracts\ActivityRepositoryInterface;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
+use App\Services\Membership\MembershipAccessService;
+use Illuminate\Support\Facades\DB;
 
 class ActivityRepository implements ActivityRepositoryInterface
 {
@@ -28,19 +31,9 @@ class ActivityRepository implements ActivityRepositoryInterface
             });
         }
 
-        $subscriptionTierId = 1;
+        $package = $user ? app(MembershipAccessService::class)->snapshot($user)['effective_package'] : null;
 
-        if ($user) {
-            $user->loadMissing('subscription');
-            $subscriptionTierId = (int) ($user->subscription->tier_id ?? 1);
-        }
-
-        $allowedTiers = [1];
-        if ($subscriptionTierId === 2) {
-            $allowedTiers = [1, 2];
-        } elseif ($subscriptionTierId >= 3) {
-            $allowedTiers = [1, 2, 3];
-        }
+        $this->scopeMembershipCategories($query, $user, $package);
 
         if (!empty($filters['mood_match'])) {
 
@@ -55,7 +48,7 @@ class ActivityRepository implements ActivityRepositoryInterface
             });
         }
 
-        $allowedSocialTypes = ['Solo', 'Optional Group'];
+        $allowedSocialTypes = ['Solo', 'Solo/Group', 'Optional Group'];
 
         if (!empty($filters['social_type'])) {
             $requestedSocialTypes = array_values(array_filter(array_map(function ($type) {
@@ -97,26 +90,13 @@ class ActivityRepository implements ActivityRepositoryInterface
             }
         } elseif (!empty($filters['hobby_ids'])) {
             $query->whereIn('hobby_id', array_map('intval', (array) $filters['hobby_ids']));
-        } elseif (!empty($categoryNames)) {
+        } elseif ($package === null && !empty($categoryNames)) {
             $query->whereHas('hobby', function ($hobbyQuery) use ($categoryNames) {
                 $hobbyQuery->whereIn('name', $categoryNames);
             });
-        } elseif ($user) {
-            $query->whereRaw('1 = 0');
         }
 
-        if (!empty($filters['tier'])) {
-            $requestedTiers = array_map('intval', (array) $filters['tier']);
-            $tierFilter = array_values(array_intersect($allowedTiers, $requestedTiers));
-
-            if (empty($tierFilter)) {
-                $query->whereRaw('1 = 0');
-            } else {
-                $query->whereIn('tier', $tierFilter);
-            }
-        } else {
-            $query->whereIn('tier', $allowedTiers);
-        }
+        if ($package === null) $query->where('tier', '1');
 
         $activities = $query->paginate(20)->getCollection();
 
@@ -128,11 +108,15 @@ class ActivityRepository implements ActivityRepositoryInterface
         return Activity::with('hobby')->get();
     }
 
-    public function groupActivities(int $perPage = 20)
+    public function groupActivities($user = null, int $perPage = 20)
     {
         $query = Activity::query()
             ->with('hobby')
-            ->whereIn('social_type', ['Optional Group', 'Group 2-10']);
+            ->whereIn('social_type', ['Group', 'Solo/Group', 'Optional Group', 'Group 2-10']);
+
+        $package = $user ? app(MembershipAccessService::class)->snapshot($user)['effective_package'] : null;
+        if ($package === null) $query->where('tier', '1');
+        $this->scopeMembershipCategories($query, $user, $package);
 
         $activities = $query->paginate($perPage)->getCollection();
 
@@ -143,21 +127,11 @@ class ActivityRepository implements ActivityRepositoryInterface
     {
         $query = Activity::query()->with('hobby');
 
-        $subscriptionTierId = 1;
+        $package = $user ? app(MembershipAccessService::class)->snapshot($user)['effective_package'] : null;
 
-        if ($user) {
-            $user->loadMissing('subscription');
-            $subscriptionTierId = (int) ($user->subscription->tier_id ?? 1);
-        }
 
-        $allowedTiers = [1];
-        if ($subscriptionTierId === 2) {
-            $allowedTiers = [1, 2];
-        } elseif ($subscriptionTierId >= 3) {
-            $allowedTiers = [1, 2, 3];
-        }
-
-        $query->whereIn('tier', $allowedTiers);
+        if ($package === null) $query->where('tier', '1');
+        $this->scopeMembershipCategories($query, $user, $package);
 
         $activities = $query->paginate($perPage)->getCollection();
 
@@ -166,13 +140,18 @@ class ActivityRepository implements ActivityRepositoryInterface
 
     public function getActivitiesPerCategoryAndTier($user, bool $excludeMicroMovement = true, array $filters = [], int $perPage = 50): LengthAwarePaginator 
     {
-        $user->loadMissing(['subscription', 'hobbies']);
-        $subscriptionTierId = (int) ($user->subscription->tier_id ?? 1);
+        $user->loadMissing('hobbies');
+        $package = app(MembershipAccessService::class)->snapshot($user)['effective_package'];
 
-        $maxTier = min(max($subscriptionTierId, 1), 3);
-        $allowedTiers = range(1, $maxTier);
 
-        $hobbies = $user->hobbies;
+        $access = app(MembershipAccessService::class)->snapshot($user);
+        $count = $access['limits']['category_count'];
+        $selectedIds = $count === null || count($access['selected_category_ids']) === $count ? $access['selected_category_ids'] : [];
+        $hobbies = $package !== null && $count === null
+            ? \App\Models\Hobby::query()->get()
+            : ($package !== null
+                ? \App\Models\Hobby::query()->whereIn('id', $selectedIds)->get()
+                : ($user->hobbies->isEmpty() ? \App\Models\Hobby::query()->get() : $user->hobbies));
         if ($excludeMicroMovement) {
             $hobbies = $hobbies->filter(function ($hobby) {
                 return strtolower(trim($hobby->name)) !== 'micro-movement';
@@ -199,9 +178,9 @@ class ActivityRepository implements ActivityRepositoryInterface
             return Activity::whereRaw('1 = 0')->paginate($perPage);
         }
 
-        $query = Activity::with(['hobby:id,name'])
-            ->whereIn('tier', $allowedTiers)
+        $query = Activity::with(['hobby:id,name,image_path'])
             ->whereIn('hobby_id', $hobbyIds);
+        if ($package === null) $query->where('tier', '1');
 
         if (isset($filters['duration_minutes']) && is_numeric($filters['duration_minutes'])) {
             $maxDuration = (float) $filters['duration_minutes'];
@@ -276,7 +255,7 @@ class ActivityRepository implements ActivityRepositoryInterface
 
     public function searchActivities(array $filters, $user = null)
     {
-        $query = Activity::query()->with('hobby:id,name');
+        $query = Activity::query()->with('hobby:id,name,image_path');
 
         if (!empty($filters['activity_title'])) {
             $search = trim($filters['activity_title']);
@@ -285,25 +264,12 @@ class ActivityRepository implements ActivityRepositoryInterface
             $query->where('activity_title', $operator, "%{$search}%");
         }
 
-        $subscriptionTierId = 1;
-        if ($user) {
-            $user->loadMissing('subscription');
-            $subscriptionTierId = (int) ($user->subscription->tier_id ?? 1);
-        }
+        $package = $user ? app(MembershipAccessService::class)->snapshot($user)['effective_package'] : null;
 
-        $maxTier = min(max($subscriptionTierId, 1), 3);
-        $allowedTiers = range(1, $maxTier);
 
-        if (!empty($filters['tier'])) {
-            $requestedTier = (int) $filters['tier'];
-            if (in_array($requestedTier, $allowedTiers, true)) {
-                $query->where('tier', (string) $requestedTier);
-            } else {
-                $query->whereRaw('1 = 0');
-            }
-        } else {
-            $query->whereIn('tier', array_map('strval', $allowedTiers));
-        }
+        if ($package === null) $query->where('tier', '1');
+
+        $this->scopeMembershipCategories($query, $user, $package);
 
         if (!empty($filters['hobby_ids'])) {
             $query->whereIn('hobby_id', array_map('intval', (array) $filters['hobby_ids']));
@@ -325,5 +291,15 @@ class ActivityRepository implements ActivityRepositoryInterface
         $perPage = !empty($filters['per_page']) ? (int) $filters['per_page'] : 50;
 
         return $query->paginate($perPage);
+    }
+
+    private function scopeMembershipCategories(Builder $query, $user, ?string $package): void
+    {
+        if (! $user || $package === null) return;
+        $access = app(MembershipAccessService::class)->snapshot($user);
+        $count = $access['limits']['category_count'];
+        if ($count === null) return;
+        $ids = count($access['selected_category_ids']) === $count ? $access['selected_category_ids'] : [];
+        $query->whereIn('hobby_id', $ids ?: [-1]);
     }
 }

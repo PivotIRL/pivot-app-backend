@@ -58,6 +58,9 @@ class GroupChallengeSessionService
                 return [
                     'user_id' => $user->id,
                     'user_name' => $user->name,
+                    // Legacy clients used host_* for every ranked participant.
+                    'host_id' => $user->id,
+                    'host_name' => $user->name,
                     'total_challenge_count' => $daily['count'] + $group['count'],
                     'total_duration_minutes' => (int) ($daily['duration'] + $group['duration']),
                 ];

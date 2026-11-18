@@ -1,18 +1,22 @@
 <?php 
 namespace App\Http\Resources;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Services\Membership\MembershipAccessService;
 
 class ResearchResource extends JsonResource
 {
     public function toArray($request)
     {
+        $access = $request->user() ? app(MembershipAccessService::class)->snapshot($request->user()) : null;
+        $isPremium = $access && $access['effective_package'] !== null && $access['limits']['full_research'];
         return [
+            'id' => (int) $this->id,
             'fun_facts' => $this->fun_facts,
             'summary' => $this->summary,
-            'video_link' => $this->video_link,
-            'video_type' => $this->video_type,
-            // 'full_content' => $this->full_content,
-            'files' => $this->files,
+            'video_link' => $isPremium ? $this->video_link : null,
+            'video_type' => $isPremium ? $this->video_type : null,
+            'full_content' => $isPremium ? $this->full_content : null,
+            'files' => $isPremium ? $this->files : null,
         ];
     }
 }

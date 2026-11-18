@@ -48,7 +48,9 @@ class ActivityRequest extends FormRequest
             'neurodivergent_notes' => 'nullable|string|max:1000',
             'sensory_tags' => 'nullable|string|max:255',
             'social_type' => 'nullable|string|max:255',
-            'energy_level' => 'nullable|in:Low,Medium,High',
+            'energy_level' => $this->isMethod('POST')
+                ? 'required|in:Low,Medium,High'
+                : 'sometimes|required|in:Low,Medium,High',
             'outcome_tag' => 'nullable|string|max:255',
             'mood_match' => 'nullable|string|max:255',
         ];
@@ -70,6 +72,7 @@ class ActivityRequest extends FormRequest
             'age_range.required' => 'Age range is required.',
             'neurodivergent_friendly.required' => 'Neurodivergent friendly status is required.',
             'neurodivergent_friendly.in' => 'Neurodivergent friendly status must be Yes, No, or Partial.',
+            'energy_level.in' => 'Energy level must be Low, Medium, or High.',
             'social_type.required' => 'Social type is required.',
             'energy_level.required' => 'Energy level is required.',
             'mood_match.required' => 'Mood match is required.',

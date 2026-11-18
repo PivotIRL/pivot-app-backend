@@ -8,6 +8,8 @@ use App\Http\Requests\ActivityFilterRequest;
 use App\Http\Resources\ActivityResource;
 use App\Services\ActivityService;
 use App\Http\Requests\ActivitySearchRequest;
+use Illuminate\Http\Request;
+use App\Services\Membership\MembershipAccessService;
 
 class ActivityController extends Controller
 {
@@ -30,8 +32,15 @@ class ActivityController extends Controller
         ]);
     }
 
-    public function show(Activity $activity)
+    public function show(Request $request, Activity $activity, MembershipAccessService $membership)
     {
+        $snapshot = $membership->snapshot($request->user());
+        $allowedCategories = $snapshot['effective_package'] !== null && $snapshot['limits']['category_count'] !== null
+            ? (count($snapshot['selected_category_ids']) === $snapshot['limits']['category_count'] ? $snapshot['selected_category_ids'] : [])
+            : null;
+        if (($snapshot['effective_package'] === null && (int) $activity->tier > 1) || ($allowedCategories !== null && ! in_array((string) $activity->hobby_id, $allowedCategories, true))) {
+            abort(404);
+        }
         return response()->json([
             new ActivityResource($activity)
         ]);
@@ -69,9 +78,9 @@ class ActivityController extends Controller
         ]);
     }
 
-    public function groupActivities()
+    public function groupActivities(Request $request)
     {
-        $activities = $this->activityService->groupActivities();
+        $activities = $this->activityService->groupActivities($request->user());
 
         return ActivityResource::collection($activities);
     }

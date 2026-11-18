@@ -17,8 +17,8 @@ class SubscriptionController extends Controller
         $overview = $revenueCat->getMetricsOverview();
         $search = trim((string) $request->query('search', ''));
 
-        $query = User::whereHas('subscription')
-            ->with('subscription.tier')
+        $query = User::whereHas('latestSubscription')
+            ->with('latestSubscription.tier')
             ->join('subscriptions', 'users.id', '=', 'subscriptions.user_id')
             ->orderByRaw('CASE WHEN subscriptions.started_at IS NULL THEN 1 ELSE 0 END')
             ->orderBy('subscriptions.started_at', 'desc')
@@ -58,13 +58,13 @@ class SubscriptionController extends Controller
             }
 
             // Tier — read directly from local DB (authoritative source)
-            $tier = $user->subscription?->tier?->name ?? 'N/A';
+            $tier = $user->latestSubscription?->tier?->name ?? 'N/A';
             $startsAt = !empty($primarySub['starts_at'])
                 ? $primarySub['starts_at']
-                : $user->subscription?->started_at;
+                : $user->latestSubscription?->started_at;
             $endsAt = !empty($primarySub['ends_at'])
                 ? $primarySub['ends_at']
-                : $user->subscription?->expires_at;
+                : $user->latestSubscription?->expires_at;
 
             return [
                 'user_name'              => $user->name,

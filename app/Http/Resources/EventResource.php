@@ -19,7 +19,7 @@ class EventResource extends JsonResource
             'description' => $this->description,
             'date_and_time' => $this->date_and_time,
             'location' => $this->location,
-            'image_url' => $this->image ? url(Storage::url($this->image)) : null,
+            'image_url' => $this->image ? Storage::disk('public')->url($this->image) : null,
             'guests' => $this->guests ?? [],
             'redirect_link' => $this->redirect_link,
             'created_at' => $this->created_at,

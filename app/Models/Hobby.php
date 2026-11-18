@@ -6,7 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 
 class Hobby extends Model
 {
-    protected $fillable = ['name', 'icon_url'];
+    protected $fillable = ['name', 'icon_url', 'active', 'image_path'];
+
+    protected $casts = ['active' => 'boolean'];
+
+    public function getImageUrlAttribute(): ?string
+    {
+        return $this->image_path ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->image_path) : null;
+    }
 
     public function activities()
     {

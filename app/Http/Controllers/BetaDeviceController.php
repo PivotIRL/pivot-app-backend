@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Users;
+use App\Models\User;
 use App\Models\DeviceFingerprint;
 use App\Http\Resources\UserResource;
 use App\Services\AuthService;
@@ -26,7 +26,7 @@ class BetaDeviceController extends Controller
         ]);
 
         // Find user
-        $user = Users::where('email', $request->email)->first();
+        $user = User::where('email', $request->email)->first();
 
         if (!$user) {
             return response()->json([

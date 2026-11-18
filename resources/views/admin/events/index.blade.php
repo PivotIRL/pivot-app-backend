@@ -61,7 +61,7 @@
                 <tr>
                     <td>
                         @if($event->image)
-                            <img src="{{ Storage::url($event->image) }}" alt="{{ $event->title }}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
+                            <img src="{{ Storage::disk('public')->url($event->image) }}" alt="{{ $event->title }}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
                         @else
                             <div style="width: 60px; height: 60px; border-radius: 8px; background: var(--bg-main); display: flex; align-items: center; justify-content: center; color: var(--text-muted);">
                                 <i class="fa-solid fa-calendar-days fa-2x"></i>
@@ -142,6 +142,7 @@
                 <div class="form-group">
                     <label class="form-label">Image (Optional)</label>
                     <input type="file" name="image" class="form-control" accept="image/*">
+                    <small class="text-muted">Maximum image size: 10 MB.</small>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Guests (Comma separated, Optional)</label>
@@ -196,6 +197,7 @@
                 <div class="form-group">
                     <label class="form-label">Image (Optional - Leave blank to keep current)</label>
                     <input type="file" name="image" class="form-control" accept="image/*">
+                    <small class="text-muted">Maximum image size: 10 MB.</small>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Guests (Comma separated, Optional)</label>

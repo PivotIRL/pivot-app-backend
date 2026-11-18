@@ -55,6 +55,133 @@ class RevenueCatService
         return $response->json();
     }
 
+    /** Fetch a complete, environment-scoped customer collection without treating API failure as an empty result. */
+    public function fetchCustomerMembershipState(string $customerId, string $environment): array
+    {
+        if ($this->apiKey === '' || $this->projectId === '' || ! in_array($environment, ['production', 'sandbox'], true)) {
+            return ['ok' => false, 'subscriptions' => [], 'purchases' => [], 'error' => 'RevenueCat is not configured for reconciliation.'];
+        }
+
+        try {
+            $subscriptions = $this->fetchCustomerCollection($customerId, 'subscriptions', $environment);
+            if (! $subscriptions['ok']) return ['ok' => false, 'subscriptions' => [], 'purchases' => [], 'error' => $subscriptions['error']];
+
+            $purchases = $this->fetchCustomerCollection($customerId, 'purchases', $environment);
+            if (! $purchases['ok']) return ['ok' => false, 'subscriptions' => [], 'purchases' => [], 'error' => $purchases['error']];
+
+            // V2 product_id is a RevenueCat catalog ID, not the store SKU. Resolve it
+            // through product metadata before membership code compares store identities.
+            $products = [];
+            $subscriptionItems = $this->resolveMembershipStoreProducts($subscriptions['items'], $products);
+            $purchaseItems = $this->resolveMembershipStoreProducts($purchases['items'], $products);
+
+            return ['ok' => true, 'subscriptions' => $subscriptionItems, 'purchases' => $purchaseItems];
+        } catch (Throwable $exception) {
+            Log::warning('RevenueCat membership reconciliation request failed.', [
+                'resource' => 'customer_membership',
+                'customer_id' => $customerId,
+                'exception' => $exception::class,
+            ]);
+
+            return ['ok' => false, 'subscriptions' => [], 'purchases' => [], 'error' => 'RevenueCat could not verify current purchases.'];
+        }
+    }
+
+    /** Receipt lookup only: a receipt does not establish a legacy pack's unspent balance. */
+    public function fetchCustomerPackPurchases(string $customerId, string $environment): array
+    {
+        if ($this->apiKey === '' || $this->projectId === '' || ! in_array($environment, ['production', 'sandbox'], true)) {
+            return ['ok' => false, 'items' => []];
+        }
+        try {
+            $result = $this->fetchCustomerCollection($customerId, 'purchases', $environment);
+            if (! $result['ok']) return $result;
+            $products = [];
+            return ['ok' => true, 'items' => $this->resolveMembershipStoreProducts($result['items'], $products)];
+        } catch (Throwable $exception) {
+            Log::warning('Legacy pack receipt lookup failed.', ['exception' => $exception::class]);
+            return ['ok' => false, 'items' => []];
+        }
+    }
+
+    private function resolveMembershipStoreProducts(array $items, array &$products): array
+    {
+        foreach ($items as &$item) {
+            $productId = $item['product_id'] ?? null;
+            if (! is_string($productId) || ! str_starts_with($productId, 'prod')) continue;
+
+            if (! array_key_exists($productId, $products)) {
+                $endpoint = "{$this->baseUrl}/projects/{$this->projectId}/products/" . rawurlencode($productId);
+                $response = Http::connectTimeout(3)->timeout(8)->withHeaders($this->headers())->get($endpoint);
+                $product = $response->json();
+                if (! $response->successful() || ! is_array($product)
+                    || ($product['id'] ?? null) !== $productId
+                    || ! is_string($product['store_identifier'] ?? null)
+                    || trim($product['store_identifier']) === '') {
+                    // An incomplete verification must not retire a customer's existing access.
+                    throw new \RuntimeException('RevenueCat membership product could not be verified.');
+                }
+                $products[$productId] = $product['store_identifier'];
+            }
+            $item['store_product_id'] = $products[$productId];
+        }
+        unset($item);
+
+        return $items;
+    }
+
+    private function fetchCustomerCollection(string $customerId, string $resource, string $environment): array
+    {
+        $items = [];
+        $startingAfter = null;
+        $seenCursors = [];
+        $endpoint = "{$this->baseUrl}/projects/{$this->projectId}/customers/" . rawurlencode($customerId) . "/{$resource}";
+
+        for ($page = 0; $page < 20; $page++) {
+            $query = ['environment' => $environment, 'limit' => 100];
+            if ($startingAfter) $query['starting_after'] = $startingAfter;
+            $response = Http::connectTimeout(3)->timeout(8)->withHeaders($this->headers())->get($endpoint, $query);
+            if ($response->failed()) {
+                Log::warning('RevenueCat membership reconciliation request failed.', [
+                    'resource' => $resource, 'status' => $response->status(), 'customer_id' => $customerId,
+                ]);
+                return ['ok' => false, 'items' => [], 'error' => 'RevenueCat could not verify current purchases.'];
+            }
+            $body = $response->json();
+            if (! is_array($body) || ! is_array($body['items'] ?? null)) {
+                Log::warning('RevenueCat membership reconciliation returned an invalid response.', [
+                    'resource' => $resource,
+                    'customer_id' => $customerId,
+                ]);
+                return ['ok' => false, 'items' => [], 'error' => 'RevenueCat returned an invalid membership response.'];
+            }
+            foreach ($body['items'] as $item) {
+                if (! is_array($item)) {
+                    Log::warning('RevenueCat membership reconciliation returned an invalid record.', [
+                        'resource' => $resource,
+                        'customer_id' => $customerId,
+                    ]);
+                    return ['ok' => false, 'items' => [], 'error' => 'RevenueCat returned an invalid membership response.'];
+                }
+            }
+            array_push($items, ...$body['items']);
+            $next = $body['next_page'] ?? null;
+            if ($next === null || $next === '') return ['ok' => true, 'items' => $items];
+            if (! is_string($next)) {
+                return ['ok' => false, 'items' => [], 'error' => 'RevenueCat returned an invalid pagination cursor.'];
+            }
+            parse_str((string) parse_url($next, PHP_URL_QUERY), $nextQuery);
+            $nextCursor = $nextQuery['starting_after'] ?? null;
+            if (! is_string($nextCursor) || $nextCursor === '' || isset($seenCursors[$nextCursor])) {
+                return ['ok' => false, 'items' => [], 'error' => 'RevenueCat returned an invalid pagination cursor.'];
+            }
+            $seenCursors[$nextCursor] = true;
+            $startingAfter = $nextCursor;
+        }
+
+        return ['ok' => false, 'items' => [], 'error' => 'RevenueCat returned too many membership records to reconcile safely.'];
+    }
+
     public function getMetricsOverview(): array
     {
         try {

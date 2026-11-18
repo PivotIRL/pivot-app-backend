@@ -48,6 +48,13 @@ Route::prefix('dashboard')->name('admin.')->group(function () {
         // Dashboard Home
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('subscriptions', [SubscriptionController::class, 'index'])->name('subscriptions.index');
+        Route::get('app-updates', [\App\Http\Controllers\AppUpdateController::class, 'index'])->name('app-updates.index');
+        Route::put('app-updates/{platform}', [\App\Http\Controllers\AppUpdateController::class, 'update'])->name('app-updates.update');
+        Route::get('notifications', [\App\Http\Controllers\Admin\AnnouncementController::class, 'index'])->name('announcements.index');
+        Route::post('notifications', [\App\Http\Controllers\Admin\AnnouncementController::class, 'store'])->name('announcements.store');
+        Route::delete('notifications/{id}', [\App\Http\Controllers\Admin\AnnouncementController::class, 'withdraw'])->name('announcements.withdraw');
+        Route::get('membership-plans', [\App\Http\Controllers\Admin\MembershipPlanController::class, 'index'])->name('membership-plans.index');
+        Route::put('membership-plans/{plan}', [\App\Http\Controllers\Admin\MembershipPlanController::class, 'update'])->name('membership-plans.update');
         Route::get('promo-codes', [PromoCodeController::class, 'index'])->name('promo-codes.index');
         Route::post('promo-codes', [PromoCodeController::class, 'store'])->name('promo-codes.store');
         Route::get('promo-codes/{promoCode}/edit', [PromoCodeController::class, 'edit'])->name('promo-codes.edit');
@@ -68,6 +75,7 @@ Route::prefix('dashboard')->name('admin.')->group(function () {
         Route::resource('activities', ActivityController::class);
 
         // Categories
+        Route::patch('categories/{category}/active', [CategoryController::class, 'updateActive'])->name('categories.active');
         Route::resource('categories', CategoryController::class);
 
         // // Challenge Packs

@@ -14,6 +14,8 @@ use App\Services\InviteService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use App\Services\Membership\MembershipAccessService;
 
 class TeamInviteController extends Controller
 {
@@ -24,6 +26,7 @@ class TeamInviteController extends Controller
     public function generateLink(Request $request): JsonResponse
     {
         $user = $request->user();
+        if ($this->atConnectionLimit($user)) return response()->json(['success' => false, 'message' => 'Your membership connection limit has been reached.'], 409);
         $result = $this->inviteService->createInvite($user);
         $invitation = $result['invite'];
 
@@ -42,6 +45,7 @@ class TeamInviteController extends Controller
     public function generate(Request $request): JsonResponse
     {
         $users = $request->user();
+        if ($this->atConnectionLimit($users)) return response()->json(['success' => false, 'message' => 'Your membership connection limit has been reached.'], 409);
         $result = $this->inviteService->createInvite($users);
         $invitation = $result['invite'];
         $token = $result['token'];
@@ -359,6 +363,20 @@ class TeamInviteController extends Controller
     private function acceptInvitation(Invitation $invitation, User|Users $user): TeamConnectionDTO
     {
         DB::transaction(function () use ($invitation, $user) {
+            $ids = [(int) $invitation->inviter_id, (int) $user->id];
+            sort($ids);
+            User::query()->whereIn('id', $ids)->orderBy('id')->lockForUpdate()->get();
+            $alreadyConnected = TeamConnection::where('user_id', $invitation->inviter_id)->where('connected_user_id', $user->id)->exists();
+            if (! $alreadyConnected) {
+                $membership = app(MembershipAccessService::class);
+                foreach ($ids as $memberId) {
+                    $member = User::query()->findOrFail($memberId);
+                    $limit = $membership->snapshot($member)['limits']['team_connections'];
+                    if (TeamConnection::where('user_id', $memberId)->count() >= $limit) {
+                        throw ValidationException::withMessages(['connections' => 'A team member has reached their membership connection limit.']);
+                    }
+                }
+            }
 
             TeamConnection::firstOrCreate([
                 'user_id' => $invitation->inviter_id,
@@ -395,5 +413,11 @@ class TeamInviteController extends Controller
         event(new NewTeamConnectionAdded($dto));
 
         return $dto;
+    }
+
+    private function atConnectionLimit(User|Users $user): bool
+    {
+        $limit = app(MembershipAccessService::class)->snapshot($user)['limits']['team_connections'];
+        return TeamConnection::where('user_id', $user->id)->count() >= $limit;
     }
 }

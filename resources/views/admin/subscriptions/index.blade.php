@@ -3,6 +3,7 @@
 @section('title', 'Subscriptions | Pivot Admin')
 
 @section('content')
+<a href="{{ route('admin.membership-plans.index') }}" class="btn btn-primary">Manage membership features</a>
 <ul class="breadcrumb">
     <li><a href="{{ route('admin.dashboard') }}">Admin</a></li>
     <li><i class="fa-solid fa-chevron-right" style="font-size: 0.65rem;"></i></li>

@@ -1,0 +1,1578 @@
+{
+    "info": {
+        "name": "Pivot API - Organization Authentication",
+        "description": "Separate authentication for the Mobile App and the Organization Dashboard.\n\nSelect the Pivot Local or Pivot Staging environment, then set the email and password variables. The login requests save their tokens automatically.\n\nA mobile token works only on Mobile App APIs, and a dashboard token works only on Organization Dashboard APIs. Each returns 401 on the other's APIs.\n\nFull guide: Docs/Postman_Organization_API_Documentation_Guide.md",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "1. Mobile App",
+            "description": "Existing Mobile App authentication. Unchanged. Tokens from here do not work on dashboard APIs.",
+            "item": [
+                {
+                    "name": "Mobile App Login",
+                    "request": {
+                        "method": "POST",
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"{{mobileEmail}}\",\n    \"password\": \"{{mobilePassword}}\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/login",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "login"
+                            ]
+                        },
+                        "description": "Uses the mobile password. Saves the token as mobileToken."
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Returns a token', () => pm.response.to.have.status(200));",
+                                    "pm.environment.set('mobileToken', pm.response.json().token);"
+                                ]
+                            }
+                        }
+                    ],
+                    "response": [
+                        {
+                            "name": "200 Success",
+                            "originalRequest": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"{{mobileEmail}}\",\n    \"password\": \"{{mobilePassword}}\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/auth/login",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "auth",
+                                        "login"
+                                    ]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"token\": \"2|REDACTED_EXAMPLE_TOKEN\",\n    \"user\": {\n        \"id\": 1,\n        \"name\": \"Alex Admin\",\n        \"email\": \"admin@example.com\",\n        \"status\": \"not_ready\",\n        \"provider\": \"email\",\n        \"created_at\": \"2026-11-07T08:28:08.000000Z\",\n        \"subscription\": null\n    }\n}"
+                        },
+                        {
+                            "name": "422 Invalid credentials",
+                            "originalRequest": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"{{mobileEmail}}\",\n    \"password\": \"{{mobilePassword}}\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/auth/login",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "auth",
+                                        "login"
+                                    ]
+                                }
+                            },
+                            "status": "Unprocessable Content",
+                            "code": 422,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"Invalid data provided.\",\n    \"errors\": {\n        \"email\": [\n            \"Invalid email or password.\"\n        ]\n    }\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "Mobile Profile",
+                    "request": {
+                        "method": "GET",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{mobileToken}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/profile/me",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "profile",
+                                "me"
+                            ]
+                        },
+                        "description": "Mobile App profile. Accepts only a mobile token."
+                    },
+                    "response": [
+                        {
+                            "name": "401 Dashboard token or no token",
+                            "originalRequest": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/profile/me",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "profile",
+                                        "me"
+                                    ]
+                                }
+                            },
+                            "status": "Unauthorized",
+                            "code": 401,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"Unauthenticated.\"\n}"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "2. Organization Dashboard Authentication",
+            "description": "Uses dashboard credentials, which are separate from the mobile password.",
+            "item": [
+                {
+                    "name": "Organization Dashboard Login",
+                    "request": {
+                        "method": "POST",
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"{{dashboardEmail}}\",\n    \"password\": \"{{dashboardPassword}}\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/organization/auth/login",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "organization",
+                                "auth",
+                                "login"
+                            ]
+                        },
+                        "description": "Allowed for ORG_OWNER, ORG_ADMIN, ORG_ANALYST, PIVOT_SUPER_ADMIN and PIVOT_SUPPORT. Saves the token as dashboardToken.\n\nRate limit: 5 attempts per minute per email and IP, and 20 per minute per IP."
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Returns a token', () => pm.response.to.have.status(200));",
+                                    "const body = pm.response.json();",
+                                    "pm.environment.set('dashboardToken', body.access_token);",
+                                    "if (body.organizations.length) { pm.environment.set('organizationId', body.organizations[0].organization.id); }"
+                                ]
+                            }
+                        }
+                    ],
+                    "response": [
+                        {
+                            "name": "200 Success",
+                            "originalRequest": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"{{dashboardEmail}}\",\n    \"password\": \"{{dashboardPassword}}\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/organization/auth/login",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "organization",
+                                        "auth",
+                                        "login"
+                                    ]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"token_type\": \"Bearer\",\n    \"access_token\": \"1|REDACTED_EXAMPLE_TOKEN\",\n    \"expires_at\": \"2026-11-07T20:20:27.711991Z\",\n    \"user\": {\n        \"id\": 1,\n        \"name\": \"Alex Admin\",\n        \"email\": \"admin@example.com\"\n    },\n    \"dashboard_account\": {\n        \"id\": 1,\n        \"email\": \"admin@example.com\",\n        \"status\": \"active\",\n        \"password_set_at\": \"2026-11-07T08:20:27.000000Z\",\n        \"last_login_at\": \"2026-11-07T08:20:27.000000Z\"\n    },\n    \"pivot_role\": null,\n    \"pivot_permissions\": [],\n    \"can_access_dashboard\": true,\n    \"organizations\": [\n        {\n            \"organization\": {\n                \"id\": \"01a1b518-3f45-7302-8394-ed4f9d6bd3a7\",\n                \"name\": \"Acme Corporation\",\n                \"slug\": \"acme-corporation\",\n                \"status\": \"active\",\n                \"package_code\": \"STANDARD\",\n                \"contract_end_at\": \"2027-11-07T08:20:27.000000Z\"\n            },\n            \"membership\": {\n                \"id\": 1,\n                \"organization_id\": \"01a1b518-3f45-7302-8394-ed4f9d6bd3a7\",\n                \"status\": \"active\",\n                \"joined_via\": \"work_email\",\n                \"joined_at\": \"2026-11-07T08:20:27.000000Z\",\n                \"activated_at\": \"2026-11-07T08:20:27.000000Z\",\n                \"deactivated_at\": null,\n                \"deactivation_reason\": null\n            },\n            \"roles\": [\n                \"ORG_ADMIN\"\n            ],\n            \"permissions\": [\n                \"organization.view\",\n                \"organization.settings.update\",\n                \"members.view\",\n                \"members.manage\",\n                \"invitations.manage\",\n                \"domains.manage\",\n                \"codes.manage\",\n                \"roles.view\",\n                \"roles.manage\",\n                \"reports.view\",\n                \"audit_logs.view\"\n            ],\n            \"can_access_dashboard\": true\n        }\n    ],\n    \"memberships\": [\n        {\n            \"id\": 1,\n            \"organization_id\": \"01a1b518-3f45-7302-8394-ed4f9d6bd3a7\",\n            \"status\": \"active\",\n            \"joined_via\": \"work_email\",\n            \"joined_at\": \"2026-11-07T08:20:27.000000Z\",\n            \"activated_at\": \"2026-11-07T08:20:27.000000Z\",\n            \"deactivated_at\": null,\n            \"deactivation_reason\": null,\n            \"organization_name\": \"Acme Corporation\"\n        }\n    ]\n}"
+                        },
+                        {
+                            "name": "401 Invalid credentials",
+                            "originalRequest": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"{{dashboardEmail}}\",\n    \"password\": \"{{dashboardPassword}}\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/organization/auth/login",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "organization",
+                                        "auth",
+                                        "login"
+                                    ]
+                                }
+                            },
+                            "status": "Unauthorized",
+                            "code": 401,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"Invalid email or password.\"\n}"
+                        },
+                        {
+                            "name": "403 No dashboard access",
+                            "originalRequest": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"{{dashboardEmail}}\",\n    \"password\": \"{{dashboardPassword}}\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/organization/auth/login",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "organization",
+                                        "auth",
+                                        "login"
+                                    ]
+                                }
+                            },
+                            "status": "Forbidden",
+                            "code": 403,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"You do not have access to the Organization Dashboard.\"\n}"
+                        },
+                        {
+                            "name": "403 Account disabled",
+                            "originalRequest": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"{{dashboardEmail}}\",\n    \"password\": \"{{dashboardPassword}}\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/organization/auth/login",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "organization",
+                                        "auth",
+                                        "login"
+                                    ]
+                                }
+                            },
+                            "status": "Forbidden",
+                            "code": 403,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"This dashboard account has been disabled.\"\n}"
+                        },
+                        {
+                            "name": "422 Validation error",
+                            "originalRequest": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"{{dashboardEmail}}\",\n    \"password\": \"{{dashboardPassword}}\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/organization/auth/login",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "organization",
+                                        "auth",
+                                        "login"
+                                    ]
+                                }
+                            },
+                            "status": "Unprocessable Content",
+                            "code": 422,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"Invalid data provided.\",\n    \"errors\": {\n        \"email\": [\n            \"The email field must be a valid email address.\"\n        ],\n        \"password\": [\n            \"The password field is required.\"\n        ]\n    }\n}"
+                        },
+                        {
+                            "name": "429 Too many attempts",
+                            "originalRequest": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"{{dashboardEmail}}\",\n    \"password\": \"{{dashboardPassword}}\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/organization/auth/login",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "organization",
+                                        "auth",
+                                        "login"
+                                    ]
+                                }
+                            },
+                            "status": "Too Many Requests",
+                            "code": 429,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                },
+                                {
+                                    "key": "Retry-After",
+                                    "value": "60"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"Too Many Attempts.\"\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "Forgot Password",
+                    "request": {
+                        "method": "POST",
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"{{dashboardEmail}}\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/organization/auth/forgot-password",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "organization",
+                                "auth",
+                                "forgot-password"
+                            ]
+                        },
+                        "description": "Emails a link: a first-time setup link if no password is set yet, otherwise a reset link. Returns the same response whether or not the email exists.\n\nRate limit: 5 per hour per email and IP, and 20 per hour per IP."
+                    },
+                    "response": [
+                        {
+                            "name": "200 Always the same",
+                            "originalRequest": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"{{dashboardEmail}}\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/organization/auth/forgot-password",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "organization",
+                                        "auth",
+                                        "forgot-password"
+                                    ]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"If a dashboard account exists for this email, a password link has been sent.\"\n}"
+                        },
+                        {
+                            "name": "429 Too many attempts",
+                            "originalRequest": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"{{dashboardEmail}}\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/organization/auth/forgot-password",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "organization",
+                                        "auth",
+                                        "forgot-password"
+                                    ]
+                                }
+                            },
+                            "status": "Too Many Requests",
+                            "code": 429,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                },
+                                {
+                                    "key": "Retry-After",
+                                    "value": "3600"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"Too Many Attempts.\"\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "Reset Password or First-Time Setup",
+                    "request": {
+                        "method": "POST",
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"{{dashboardEmail}}\",\n    \"token\": \"{{passwordToken}}\",\n    \"password\": \"{{newDashboardPassword}}\",\n    \"password_confirmation\": \"{{newDashboardPassword}}\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/organization/auth/reset-password",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "organization",
+                                "auth",
+                                "reset-password"
+                            ]
+                        },
+                        "description": "Used for both first-time setup and reset. Copy token from the emailed link into the passwordToken variable. On success, signs out every dashboard session. Mobile sessions and the mobile password are not affected.\n\nPassword rules: at least 12 characters, with upper and lower case letters, a number and a symbol.\n\nRate limit: 10 per minute per IP."
+                    },
+                    "response": [
+                        {
+                            "name": "200 Success",
+                            "originalRequest": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"{{dashboardEmail}}\",\n    \"token\": \"{{passwordToken}}\",\n    \"password\": \"{{newDashboardPassword}}\",\n    \"password_confirmation\": \"{{newDashboardPassword}}\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/organization/auth/reset-password",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "organization",
+                                        "auth",
+                                        "reset-password"
+                                    ]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"Your password has been set. Please sign in.\"\n}"
+                        },
+                        {
+                            "name": "422 Invalid or expired link",
+                            "originalRequest": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"{{dashboardEmail}}\",\n    \"token\": \"{{passwordToken}}\",\n    \"password\": \"{{newDashboardPassword}}\",\n    \"password_confirmation\": \"{{newDashboardPassword}}\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/organization/auth/reset-password",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "organization",
+                                        "auth",
+                                        "reset-password"
+                                    ]
+                                }
+                            },
+                            "status": "Unprocessable Content",
+                            "code": 422,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"This password link is invalid or has expired.\"\n}"
+                        },
+                        {
+                            "name": "422 Password rules",
+                            "originalRequest": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"{{dashboardEmail}}\",\n    \"token\": \"{{passwordToken}}\",\n    \"password\": \"{{newDashboardPassword}}\",\n    \"password_confirmation\": \"{{newDashboardPassword}}\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/organization/auth/reset-password",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "organization",
+                                        "auth",
+                                        "reset-password"
+                                    ]
+                                }
+                            },
+                            "status": "Unprocessable Content",
+                            "code": 422,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"Invalid data provided.\",\n    \"errors\": {\n        \"password\": [\n            \"The password field must be at least 12 characters.\"\n        ]\n    }\n}"
+                        },
+                        {
+                            "name": "429 Too many attempts",
+                            "originalRequest": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"{{dashboardEmail}}\",\n    \"token\": \"{{passwordToken}}\",\n    \"password\": \"{{newDashboardPassword}}\",\n    \"password_confirmation\": \"{{newDashboardPassword}}\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/organization/auth/reset-password",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "organization",
+                                        "auth",
+                                        "reset-password"
+                                    ]
+                                }
+                            },
+                            "status": "Too Many Requests",
+                            "code": 429,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                },
+                                {
+                                    "key": "Retry-After",
+                                    "value": "60"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"Too Many Attempts.\"\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "Organization Dashboard Logout",
+                    "request": {
+                        "method": "POST",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{dashboardToken}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/organization/auth/logout",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "organization",
+                                "auth",
+                                "logout"
+                            ]
+                        },
+                        "description": "Revokes only the token used for this request. Other dashboard sessions and all mobile sessions stay signed in."
+                    },
+                    "response": [
+                        {
+                            "name": "200 Success",
+                            "originalRequest": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/organization/auth/logout",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "organization",
+                                        "auth",
+                                        "logout"
+                                    ]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"Logged out successfully.\"\n}"
+                        },
+                        {
+                            "name": "401 Missing, invalid, expired or mobile token",
+                            "originalRequest": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/organization/auth/logout",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "organization",
+                                        "auth",
+                                        "logout"
+                                    ]
+                                }
+                            },
+                            "status": "Unauthorized",
+                            "code": 401,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"Unauthenticated.\"\n}"
+                        },
+                        {
+                            "name": "403 No dashboard access",
+                            "originalRequest": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/organization/auth/logout",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "organization",
+                                        "auth",
+                                        "logout"
+                                    ]
+                                }
+                            },
+                            "status": "Forbidden",
+                            "code": 403,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"You do not have access to the Organization Dashboard.\"\n}"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "3. Organization Dashboard Profile",
+            "item": [
+                {
+                    "name": "Organization Dashboard Profile",
+                    "request": {
+                        "method": "GET",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{dashboardToken}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/corporate/me",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "corporate",
+                                "me"
+                            ]
+                        },
+                        "description": "Who is signed in, their dashboard account, the organizations they can access right now with roles and permissions, and their current memberships. Accepts only a dashboard token."
+                    },
+                    "response": [
+                        {
+                            "name": "200 Success",
+                            "originalRequest": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/corporate/me",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "corporate",
+                                        "me"
+                                    ]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"user\": {\n        \"id\": 1,\n        \"name\": \"Alex Admin\",\n        \"email\": \"admin@example.com\"\n    },\n    \"dashboard_account\": {\n        \"id\": 1,\n        \"email\": \"admin@example.com\",\n        \"status\": \"active\",\n        \"password_set_at\": \"2026-11-07T08:20:27.000000Z\",\n        \"last_login_at\": \"2026-11-07T08:20:27.000000Z\"\n    },\n    \"pivot_role\": null,\n    \"pivot_permissions\": [],\n    \"can_access_dashboard\": true,\n    \"organizations\": [\n        {\n            \"organization\": {\n                \"id\": \"01a1b518-3f45-7302-8394-ed4f9d6bd3a7\",\n                \"name\": \"Acme Corporation\",\n                \"slug\": \"acme-corporation\",\n                \"status\": \"active\",\n                \"package_code\": \"STANDARD\",\n                \"contract_end_at\": \"2027-11-07T08:20:27.000000Z\"\n            },\n            \"membership\": {\n                \"id\": 1,\n                \"organization_id\": \"01a1b518-3f45-7302-8394-ed4f9d6bd3a7\",\n                \"status\": \"active\",\n                \"joined_via\": \"work_email\",\n                \"joined_at\": \"2026-11-07T08:20:27.000000Z\",\n                \"activated_at\": \"2026-11-07T08:20:27.000000Z\",\n                \"deactivated_at\": null,\n                \"deactivation_reason\": null\n            },\n            \"roles\": [\n                \"ORG_ADMIN\"\n            ],\n            \"permissions\": [\n                \"organization.view\",\n                \"organization.settings.update\",\n                \"members.view\",\n                \"members.manage\",\n                \"invitations.manage\",\n                \"domains.manage\",\n                \"codes.manage\",\n                \"roles.view\",\n                \"roles.manage\",\n                \"reports.view\",\n                \"audit_logs.view\"\n            ],\n            \"can_access_dashboard\": true\n        }\n    ],\n    \"memberships\": [\n        {\n            \"id\": 1,\n            \"organization_id\": \"01a1b518-3f45-7302-8394-ed4f9d6bd3a7\",\n            \"status\": \"active\",\n            \"joined_via\": \"work_email\",\n            \"joined_at\": \"2026-11-07T08:20:27.000000Z\",\n            \"activated_at\": \"2026-11-07T08:20:27.000000Z\",\n            \"deactivated_at\": null,\n            \"deactivation_reason\": null,\n            \"organization_name\": \"Acme Corporation\"\n        }\n    ]\n}"
+                        },
+                        {
+                            "name": "401 Missing, invalid, expired or mobile token",
+                            "originalRequest": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/corporate/me",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "corporate",
+                                        "me"
+                                    ]
+                                }
+                            },
+                            "status": "Unauthorized",
+                            "code": 401,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"Unauthenticated.\"\n}"
+                        },
+                        {
+                            "name": "403 No dashboard access",
+                            "originalRequest": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/corporate/me",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "corporate",
+                                        "me"
+                                    ]
+                                }
+                            },
+                            "status": "Forbidden",
+                            "code": 403,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"You do not have access to the Organization Dashboard.\"\n}"
+                        },
+                        {
+                            "name": "403 Account disabled",
+                            "originalRequest": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/corporate/me",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "corporate",
+                                        "me"
+                                    ]
+                                }
+                            },
+                            "status": "Forbidden",
+                            "code": 403,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"This dashboard account has been disabled.\"\n}"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "4. Token Isolation Checks",
+            "description": "Run after both logins. Every request here must be rejected with 401.",
+            "item": [
+                {
+                    "name": "Mobile token on dashboard profile",
+                    "request": {
+                        "method": "GET",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{mobileToken}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/corporate/me",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "corporate",
+                                "me"
+                            ]
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Returns HTTP 401', () => pm.response.to.have.status(401));"
+                                ]
+                            }
+                        }
+                    ],
+                    "response": [
+                        {
+                            "name": "401 Rejected",
+                            "originalRequest": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/corporate/me",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "corporate",
+                                        "me"
+                                    ]
+                                }
+                            },
+                            "status": "Unauthorized",
+                            "code": 401,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"Unauthenticated.\"\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "Mobile token on organizations",
+                    "request": {
+                        "method": "GET",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{mobileToken}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/organizations",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "organizations"
+                            ]
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Returns HTTP 401', () => pm.response.to.have.status(401));"
+                                ]
+                            }
+                        }
+                    ],
+                    "response": [
+                        {
+                            "name": "401 Rejected",
+                            "originalRequest": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/organizations",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "organizations"
+                                    ]
+                                }
+                            },
+                            "status": "Unauthorized",
+                            "code": 401,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"Unauthenticated.\"\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "Dashboard token on mobile profile",
+                    "request": {
+                        "method": "GET",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{dashboardToken}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/profile/me",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "profile",
+                                "me"
+                            ]
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Returns HTTP 401', () => pm.response.to.have.status(401));"
+                                ]
+                            }
+                        }
+                    ],
+                    "response": [
+                        {
+                            "name": "401 Rejected",
+                            "originalRequest": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/profile/me",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "profile",
+                                        "me"
+                                    ]
+                                }
+                            },
+                            "status": "Unauthorized",
+                            "code": 401,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"Unauthenticated.\"\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "Dashboard token on mobile join",
+                    "request": {
+                        "method": "POST",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{dashboardToken}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/corporate/join/work-email",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "corporate",
+                                "join",
+                                "work-email"
+                            ]
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Returns HTTP 401', () => pm.response.to.have.status(401));"
+                                ]
+                            }
+                        }
+                    ],
+                    "response": [
+                        {
+                            "name": "401 Rejected",
+                            "originalRequest": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/corporate/join/work-email",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "corporate",
+                                        "join",
+                                        "work-email"
+                                    ]
+                                }
+                            },
+                            "status": "Unauthorized",
+                            "code": 401,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"message\": \"Unauthenticated.\"\n}"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

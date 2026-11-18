@@ -1,0 +1,46 @@
+.updates-page { max-width: 1240px; margin: 0 auto; }
+.updates-header { margin-bottom: 24px; }
+.updates-eyebrow { display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: .12em; }
+.updates-header h1 { font-size: clamp(25px, 3vw, 32px); line-height: 1.25; margin-bottom: 10px; }
+.updates-header p { max-width: 760px; color: var(--text-muted); line-height: 1.7; }
+.updates-guide { display: flex; gap: 16px; padding: 22px 24px; border: 1px solid var(--primary-border); border-radius: 14px; background: var(--primary-light); margin-bottom: 28px; }
+.updates-guide-icon { font-size: 20px; padding-top: 2px; }
+.updates-guide h2 { font-size: 15px; margin-bottom: 6px; }
+.updates-guide p { line-height: 1.6; }
+.updates-example { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.updates-example span { padding: 5px 10px; border-radius: 6px; background: var(--bg-surface); border: 1px solid var(--border-color); font-size: 12px; }
+.updates-hint { display: block; color: var(--text-muted); font-size: 12px; line-height: 1.6; margin-top: 7px; }
+.updates-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: stretch; }
+.updates-card { min-width: 0; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 18px; box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; }
+.updates-card-header { padding: 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.updates-platform { display: flex; align-items: center; gap: 12px; }
+.updates-platform-icon { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--bg-main); font-size: 24px; }
+.updates-platform h2 { font-size: 20px; line-height: 1.3; }
+.updates-platform p { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+.updates-status { border-radius: 20px; padding: 5px 10px; font-size: 11px; font-weight: 600; background: var(--bg-main); color: var(--text-muted); }
+.updates-status.is-enabled { background: var(--success-bg); color: var(--success); }
+.updates-card-body { padding: 24px; flex: 1; }
+.updates-enable { display: flex; align-items: flex-start; gap: 12px; border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; background: var(--bg-main); margin-bottom: 24px; cursor: pointer; }
+.updates-enable:has(input:checked) { background: var(--primary-light); border-color: var(--primary-border); }
+.updates-enable input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--primary); flex-shrink: 0; }
+.updates-enable strong { display: block; font-size: 14px; margin-bottom: 4px; color: var(--text-heading); }
+.updates-enable span span { display: block; color: var(--text-muted); font-size: 12px; line-height: 1.6; }
+.updates-version-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.updates-card .form-group { min-width: 0; margin-bottom: 22px; }
+.updates-card .form-group:last-child { margin-bottom: 0; }
+.updates-version-grid .form-group:last-child { margin-bottom: 22px; }
+.updates-card .form-control { min-height: 44px; font-family: inherit; }
+.updates-card textarea { resize: vertical; min-height: 120px; line-height: 1.6; }
+.updates-card-footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 20px 24px; border-top: 1px solid var(--border-color); }
+.updates-card-footer .updates-hint { margin: 0; }
+.updates-alert { padding: 16px 20px; margin-bottom: 24px; border-radius: 10px; }
+.updates-success { background: var(--success-bg); color: var(--success); }
+.updates-error { background: var(--danger-bg); color: var(--danger); }
+.updates-error ul { padding-left: 20px; margin-top: 8px; }
+@media (max-width: 1180px) { .updates-grid { grid-template-columns: 1fr; } }
+@media (max-width: 600px) {
+    .updates-version-grid { grid-template-columns: 1fr; gap: 0; }
+    .updates-card-header, .updates-card-body, .updates-card-footer { padding: 20px; }
+    .updates-guide { padding: 18px; gap: 12px; }
+    .updates-card-footer .btn { width: 100%; }
+}

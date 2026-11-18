@@ -7,9 +7,15 @@ use App\Models\Subscription;
 use App\Models\Tier;
 use App\Models\Users;
 use App\Models\SubscriptionLogs;
+use App\Services\Membership\MembershipAttemptStatus;
+use App\Services\Membership\VerifiedMembershipProductResolver;
+use App\Services\Membership\MembershipWebhookPolicy;
+use App\Services\Membership\MembershipReconciliationService;
+use App\Services\Membership\CompletedMembershipTrial;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class RevenueCatWebhookController extends Controller
 {
@@ -21,7 +27,12 @@ class RevenueCatWebhookController extends Controller
     private const EVENT_BILLING_ISSUE = 'BILLING_ISSUE';
     private const EVENT_NON_RENEWING_PURCHASE = 'NON_RENEWING_PURCHASE';
 
-    public function __invoke(RevenueCatWebhookRequest $request): JsonResponse
+    public function __invoke(
+        RevenueCatWebhookRequest $request,
+        VerifiedMembershipProductResolver $products,
+        MembershipAttemptStatus $attemptStatus,
+        MembershipReconciliationService $reconciliation,
+    ): JsonResponse
     {
         if (! $this->isAuthorized($request->header('Authorization'))) {
             return response()->json([
@@ -30,6 +41,14 @@ class RevenueCatWebhookController extends Controller
         }
 
         $payload = $request->validated();
+        if ($payload['type'] === 'TEST') {
+            return response()->json(['message' => 'Webhook authentication verified; no access changed.']);
+        }
+        // These events cannot safely be interpreted as a direct product grant.
+        if (strtolower((string) ($payload['store'] ?? '')) === 'promotional'
+            || in_array($payload['type'], ['TRANSFER', 'REFUND_REVERSED', 'BILLING_ISSUE'], true)) {
+            return $this->reconcileLifecycleEvent($payload, $reconciliation);
+        }
         $user = $this->resolveUser($payload);
 
         if (! $user) {
@@ -38,71 +57,316 @@ class RevenueCatWebhookController extends Controller
             ], 422);
         }
 
-        $subscription = Subscription::query()->firstWhere('user_id', $user->id);
-        $eventType = $payload['type'] ?? null;
-        $productId = $payload['product_id'] ?? null;
-        $newProductId = $payload['new_product_id'] ?? null;
-        $entitlementId = $this->resolvePrimaryEntitlementId($payload['entitlement_ids'] ?? []);
-
-        $incomingTierId = $this->resolveTierId($entitlementId, $subscription?->tier_id);
-        $freeTierId = $this->resolveFreeTierId($subscription?->tier_id ?? 1);
-        $purchasedAt = $this->fromMilliseconds($payload['purchased_at_ms'] ?? null);
-        $expiresAt = $this->fromMilliseconds($payload['expiration_at_ms'] ?? null);
-        $eventAt = $this->fromMilliseconds($payload['event_timestamp_ms'] ?? null);
-
-        if ($subscription?->revenuecat_event_at && $eventAt && $eventAt->lessThanOrEqualTo($subscription->revenuecat_event_at)) {
-            return response()->json([
-                'message' => 'Older RevenueCat event ignored.',
-                'subscription_id' => $subscription->id,
-            ], 200);
+        if (strtolower((string) ($payload['environment'] ?? 'production')) !== strtolower((string) config('membership.store_environment', 'production'))) {
+            return response()->json(['message' => 'Purchase environment is isolated from this backend.'], 200);
         }
 
-        $eventState = $this->resolveEventState(
-            $eventType,
-            $incomingTierId,
-            $freeTierId,
-            $expiresAt,
-            $subscription?->expires_at,
-            $subscription?->active
-        );
+        $eventId = (string) $payload['id'];
+        $inserted = DB::table('revenuecat_webhook_events')->insertOrIgnore([
+            'event_id' => $eventId,
+            'status' => 'received',
+            'payload' => json_encode($payload),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $priorEvent = $inserted ? null : DB::table('revenuecat_webhook_events')->where('event_id', $eventId)->first();
+        if ($priorEvent?->status === 'processed') {
+            return response()->json(['message' => 'RevenueCat event already received.'], 200);
+        }
 
-        $record = Subscription::query()->updateOrCreate(
-            ['user_id' => $user->id],
-            [
+        return DB::transaction(function () use ($user, $payload, $eventId, $products, $attemptStatus) {
+            Users::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $event = DB::table('revenuecat_webhook_events')->where('event_id', $eventId)->lockForUpdate()->first();
+            if ($event?->status === 'processed') {
+                return response()->json(['message' => 'RevenueCat event already received.'], 200);
+            }
+
+            $subscription = Subscription::query()->where('user_id', $user->id)->lockForUpdate()->first();
+            $eventType = $payload['type'] ?? null;
+            $productId = $payload['product_id'] ?? null;
+            $newProductId = $payload['new_product_id'] ?? null;
+            $entitlementId = $this->resolvePrimaryEntitlementId($payload['entitlement_ids'] ?? []);
+            $incomingTierId = $this->resolveTierId($entitlementId, $subscription?->tier_id);
+            $freeTierId = $this->resolveFreeTierId($subscription?->tier_id ?? 1);
+            $purchasedAt = $this->fromMilliseconds($payload['purchased_at_ms'] ?? null);
+            $expiresAt = $this->fromMilliseconds($payload['expiration_at_ms'] ?? null);
+            $eventAt = $this->fromMilliseconds($payload['event_timestamp_ms'] ?? null);
+
+            if ($subscription?->revenuecat_event_at && $eventAt && $eventAt->lessThanOrEqualTo($subscription->revenuecat_event_at)) {
+                DB::table('revenuecat_webhook_events')->where('event_id', $eventId)->update(['status' => 'processed', 'processed_at' => now(), 'updated_at' => now()]);
+                return response()->json(['message' => 'Older RevenueCat event ignored.', 'subscription_id' => $subscription->id], 200);
+            }
+
+            $eventState = $this->resolveEventState($eventType, $incomingTierId, $freeTierId, $expiresAt, $subscription?->expires_at, $subscription?->active);
+            $preserveLegacySubscription = $this->syncMembershipPurchase(
+                $user, $payload, $eventState, $eventType, $productId, $newProductId, $entitlementId, $expiresAt,
+                $products, $attemptStatus,
+            );
+            $eventProductId = $eventType === self::EVENT_PRODUCT_CHANGE
+                ? ($newProductId ?? $productId ?? $entitlementId)
+                : ($productId ?? $entitlementId);
+
+            if (! $preserveLegacySubscription) {
+                $subscription = Subscription::query()->updateOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'tier_id' => $eventState['tier_id'],
+                        'type' => $eventType,
+                        'environment' => $payload['environment'] ?? null,
+                        'active' => $eventState['active'],
+                        'store' => $payload['store'] ?? null,
+                        'product_id' => $eventProductId,
+                        'revenuecat_user_id' => $payload['app_user_id'],
+                        'started_at' => $purchasedAt ?? $subscription?->started_at,
+                        'expires_at' => $expiresAt ?? $subscription?->expires_at,
+                        'revenuecat_event_at' => $eventAt ?? $subscription?->revenuecat_event_at,
+                    ]
+                );
+            }
+
+            SubscriptionLogs::query()->create([
+                'user_id' => $user->id,
                 'tier_id' => $eventState['tier_id'],
                 'type' => $eventType,
                 'environment' => $payload['environment'] ?? null,
                 'active' => $eventState['active'],
                 'store' => $payload['store'] ?? null,
-                'product_id' => $eventType === self::EVENT_PRODUCT_CHANGE
-                    ? ($newProductId ?? $productId ?? $entitlementId)
-                    : ($productId ?? $entitlementId),
+                'product_id' => $eventProductId,
                 'revenuecat_user_id' => $payload['app_user_id'],
                 'started_at' => $purchasedAt ?? $subscription?->started_at,
                 'expires_at' => $expiresAt ?? $subscription?->expires_at,
-                'revenuecat_event_at' => $eventAt ?? $subscription?->revenuecat_event_at,
-            ]
+            ]);
+
+            DB::table('revenuecat_webhook_events')->where('event_id', $eventId)->update([
+                'status' => 'processed', 'processed_at' => now(), 'updated_at' => now(),
+            ]);
+
+            return response()->json([
+                'message' => 'Subscription synced successfully.',
+                'subscription_id' => $subscription?->id,
+            ], 200);
+        });
+    }
+
+    private function syncMembershipPurchase(
+        Users $user,
+        array $payload,
+        array &$eventState,
+        ?string $eventType,
+        ?string $productId,
+        ?string $newProductId,
+        ?string $entitlementId,
+        ?Carbon $expiresAt,
+        VerifiedMembershipProductResolver $products,
+        MembershipAttemptStatus $attemptStatus,
+    ): bool
+    {
+        if (! in_array($eventType, [
+            self::EVENT_INITIAL_PURCHASE, self::EVENT_RENEWAL, self::EVENT_CANCELLATION,
+            self::EVENT_EXPIRATION, self::EVENT_PRODUCT_CHANGE, self::EVENT_BILLING_ISSUE,
+            self::EVENT_NON_RENEWING_PURCHASE, 'REFUND',
+            'UNCANCELLATION', 'SUBSCRIPTION_EXTENDED', 'SUBSCRIPTION_PAUSED',
+        ], true)) return true;
+
+        $configuredEnvironment = strtolower((string) config('membership.store_environment', 'production'));
+        $environment = strtolower((string) ($payload['environment'] ?? 'production'));
+        if ($environment !== $configuredEnvironment) return true;
+        $resolvedProduct = $eventType === self::EVENT_PRODUCT_CHANGE ? ($newProductId ?? $productId) : $productId;
+        $store = strtolower((string) ($payload['store'] ?? 'unknown'));
+        $transactionId = $payload['transaction_id'] ?? null;
+        if (! $resolvedProduct) return true;
+        $basePlan = isset($payload['base_plan_id']) && is_string($payload['base_plan_id']) ? $payload['base_plan_id'] : null;
+        $packageHint = match (strtolower((string) $entitlementId)) {
+            'standard', 'standard_andriod', 'tier2', 'tier_2', 'tier2_android', 'tier_2_android' => 'standard',
+            'premium', 'premium_android', 'premium android', 'tier3', 'tier_3', 'tier3_android', 'tier_3_android' => 'premium',
+            default => null,
+        };
+        $choice = $products->resolve(
+            (int) $user->id,
+            [$resolvedProduct],
+            $packageHint,
+            $basePlan,
+            $environment,
+            array_filter([$transactionId, $payload['original_transaction_id'] ?? null]),
         );
+        if (! $choice) {
+            $products->logUnresolved([
+                'user_id' => $user->id,
+                'source' => 'webhook',
+                'event_type' => $eventType,
+                'product_id' => $resolvedProduct,
+                'base_plan_id' => $basePlan,
+                'environment' => $environment,
+            ]);
+            return true;
+        }
+        $package = $choice['package'];
+        $path = $choice['path'];
+        $basePlan = $choice['base_plan_id'];
+        $storeProduct = $choice['store_product_id'];
+        $attempt = $this->matchingAttempt($user, $choice, ['purchase', 'change']);
+        if ($eventType === self::EVENT_PRODUCT_CHANGE) {
+            if (! $attempt) return true;
+            $quote = json_decode($attempt->quote, true) ?: [];
+            if (($quote['replacement_mode'] ?? null) === 'DEFERRED') {
+                if ($attempt->status !== 'scheduled') {
+                    $attemptStatus->transition((int) $attempt->id, 'scheduled', null, 'verified_revenuecat_deferred_product_change');
+                }
+                return true;
+            }
+        }
+        $revoked = MembershipWebhookPolicy::revoked($eventType, $path, $expiresAt);
+        if ($revoked && ! $transactionId) {
+            abort(422, 'A store transaction is required to revoke a purchase.');
+        }
 
-        $subscriptionLog = SubscriptionLogs::query()->create([
-            'user_id' => $user->id,
-            'tier_id' => $eventState['tier_id'],
-            'type' => $eventType,
-            'environment' => $payload['environment'] ?? null,
-            'active' => $eventState['active'],
-            'store' => $payload['store'] ?? null,
-            'product_id' => $eventType === self::EVENT_PRODUCT_CHANGE
-                ? ($newProductId ?? $productId ?? $entitlementId)
-                : ($productId ?? $entitlementId),
-            'revenuecat_user_id' => $payload['app_user_id'],
-            'started_at' => $purchasedAt ?? $subscription?->started_at,
-            'expires_at' => $expiresAt ?? $subscription?->expires_at,
+        if ($transactionId && $resolvedProduct) {
+            DB::table('verified_purchases')->updateOrInsert(
+                ['store' => $store, 'environment' => $environment, 'transaction_id' => $transactionId],
+                [
+                    'user_id' => $user->id,
+                    'store' => $store,
+                    'environment' => $environment,
+                    'original_transaction_id' => $payload['original_transaction_id'] ?? null,
+                    'product_id' => $storeProduct,
+                    'base_plan_id' => $basePlan,
+                    'entitlement' => $entitlementId,
+                    'package' => $package,
+                    'payment_path' => $path,
+                    'renewal_status' => MembershipWebhookPolicy::renewalStatus($payload),
+                    'expires_at' => $expiresAt,
+                    'revoked_at' => $revoked ? now() : null,
+                    'payload' => json_encode($payload),
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
+        }
+
+        if ($transactionId && $revoked) {
+            $accountTrial = DB::table('account_access')->where('user_id', $user->id)
+                ->where('access_source', 'account_trial')->where('access_status', 'trial')
+                ->where('access_ends_at', '>', now())->first();
+            $replacement = DB::table('verified_purchases')->where('user_id', $user->id)
+                ->where('environment', $environment)
+                ->whereNull('revoked_at')->where(function ($query) {
+                    $query->whereNull('expires_at')->orWhere('expires_at', '>', now());
+                })->orderByRaw("CASE package WHEN 'premium' THEN 2 WHEN 'standard' THEN 1 ELSE 0 END DESC")
+                ->first();
+            if ($accountTrial) {
+                return true;
+            } elseif (! $replacement) {
+                $eventState = ['tier_id' => $this->resolveFreeTierId(1), 'active' => false];
+                DB::table('account_access')->where('user_id', $user->id)->update([
+                    'effective_package' => null, 'access_status' => 'expired', 'access_ends_at' => $expiresAt,
+                    'updated_at' => now(),
+                ]);
+            } else {
+                DB::table('account_access')->updateOrInsert(['user_id' => $user->id], [
+                    'selected_package' => $replacement->package,
+                    'effective_package' => $replacement->package,
+                    'payment_path' => $replacement->payment_path,
+                    'access_status' => 'active',
+                    'access_source' => 'store',
+                    'product_id' => $replacement->payment_path === 'lifetime' ? $replacement->product_id : $replacement->product_id . ':' . $replacement->base_plan_id,
+                    'trial_ends_at' => null,
+                    'access_ends_at' => $replacement->expires_at,
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]);
+                // The refunded/expired product must not overwrite another valid subscription.
+                return true;
+            }
+            return false;
+        }
+
+        $periodType = strtoupper((string) ($payload['period_type'] ?? ''));
+        $isTrial = $periodType === 'TRIAL';
+        $selectedPackage = $package;
+        $effectivePackage = $package;
+        if (in_array($eventType, [self::EVENT_INITIAL_PURCHASE, self::EVENT_RENEWAL, self::EVENT_PRODUCT_CHANGE], true)) {
+            if ($attempt && $transactionId) {
+                $attemptStatus->transition((int) $attempt->id, 'completed', (string) $transactionId, 'verified_revenuecat_webhook');
+            }
+        }
+        if ($isTrial) {
+            $attempt = $this->matchingAttempt($user, $choice, ['trial'])
+                ?? (new CompletedMembershipTrial())->find($user->id, $choice,
+                    [$transactionId, $payload['original_transaction_id'] ?? null]);
+            if ($attempt) {
+                $quoted = json_decode($attempt->quote, true) ?: [];
+                $selectedPackage = $quoted['selected_package'] ?? $package;
+                $effectivePackage = $quoted['trial_access_package'] ?? $package;
+                if ($transactionId && $attempt->status !== 'completed') {
+                    $attemptStatus->transition((int) $attempt->id, 'completed', (string) $transactionId, 'verified_revenuecat_trial');
+                }
+            }
+            DB::table('membership_trials')->updateOrInsert(['user_id' => $user->id], [
+                'status' => 'consumed', 'started_at' => now(), 'ends_at' => $expiresAt,
+                'source' => 'store', 'transaction_id' => $transactionId, 'updated_at' => now(), 'created_at' => now(),
+            ]);
+        }
+
+        $isActive = $eventState['active']
+            && ($path === 'lifetime' || ($expiresAt && $expiresAt->isFuture()));
+        if (! $isActive) $effectivePackage = null;
+        DB::table('account_access')->updateOrInsert(['user_id' => $user->id], [
+            'selected_package' => $selectedPackage,
+            'effective_package' => $effectivePackage,
+            'payment_path' => $path,
+            'access_status' => $isTrial && $isActive ? 'trial' : ($isActive ? 'active' : 'expired'),
+            'access_source' => 'store',
+            'product_id' => $choice['product_id'],
+            'trial_ends_at' => $isTrial && $isActive ? $expiresAt : null,
+            'access_ends_at' => $expiresAt,
+            'updated_at' => now(),
+            'created_at' => now(),
         ]);
+        return false;
+    }
 
-        return response()->json([
-            'message' => 'Subscription synced successfully.',
-            'subscription_id' => $record->id,
-        ], 200);
+    private function matchingAttempt(Users $user, array $choice, array $operations): ?object
+    {
+        $matches = [];
+        foreach (DB::table('membership_attempts')->where('user_id', $user->id)
+            ->whereIn('operation', $operations)->whereIn('status', ['pending', 'scheduled', 'cancelled'])
+            ->latest('created_at')->get() as $attempt) {
+            $quote = json_decode($attempt->quote, true) ?: [];
+            if (($quote['product_id'] ?? null) === $choice['store_product_id']
+                && ($quote['base_plan_id'] ?? null) === $choice['base_plan_id']) $matches[] = $attempt;
+        }
+
+        $current = array_values(array_filter($matches, fn ($attempt) => in_array($attempt->status, ['pending', 'scheduled'], true)));
+        $candidates = $current !== [] ? $current : $matches;
+        return count($candidates) === 1 ? $candidates[0] : null;
+    }
+
+    private function reconcileLifecycleEvent(array $payload, MembershipReconciliationService $reconciliation): JsonResponse
+    {
+        $environment = strtolower((string) config('membership.store_environment', 'production'));
+        if (isset($payload['environment']) && strtolower($payload['environment']) !== $environment) {
+            return response()->json(['message' => 'Purchase environment is isolated from this backend.']);
+        }
+        $users = [];
+        if ($payload['type'] === 'TRANSFER') {
+            foreach (array_merge($payload['transferred_from'], $payload['transferred_to']) as $id) {
+                $user = $this->resolveUserFromCandidateId($id);
+                if ($user) $users[$user->id] = $user;
+            }
+        } else {
+            $user = $this->resolveUser($payload);
+            if ($user) $users[$user->id] = $user;
+        }
+        if ($users === []) return response()->json(['message' => 'No linked membership account found.'], 422);
+
+        // A retry reads current state again; it never replays an old grant or revocation.
+        // Reconciliation scopes every read to this backend's store environment.
+        try {
+            foreach ($users as $user) $reconciliation->reconcile($user);
+        } catch (\RuntimeException $exception) {
+            return response()->json(['message' => 'Membership verification unavailable. Retry this event.'], 503);
+        }
+        return response()->json(['message' => 'Current membership ownership reconciled.']);
     }
 
     private function isAuthorized(?string $authorizationHeader): bool
@@ -110,7 +374,7 @@ class RevenueCatWebhookController extends Controller
         $secret = (string) config('services.revenuecat.webhook_secret', '');
 
         if ($secret === '') {
-            return true;
+            return false;
         }
 
         if (! $authorizationHeader) {
@@ -162,6 +426,12 @@ class RevenueCatWebhookController extends Controller
             return $fallbackTierId ?? 1;
         }
 
+        if (in_array(strtolower($entitlementId), ['premium', 'premium_android', 'premium android', 'tier3', 'tier_3', 'tier3_android', 'tier_3_android'], true)) {
+            return (int) (Tier::query()->where('name', '3')->value('id') ?? 3);
+        }
+        if (in_array(strtolower($entitlementId), ['standard', 'standard_andriod', 'tier2', 'tier_2', 'tier2_android', 'tier_2_android'], true)) {
+            return (int) (Tier::query()->where('name', '2')->value('id') ?? 2);
+        }
         if (preg_match('/tier_(\d+)/', $entitlementId, $matches)) {
 
             $tier = Tier::query()
@@ -181,13 +451,15 @@ class RevenueCatWebhookController extends Controller
             return null;
         }
 
+        $fallback = null;
         foreach ($entitlementIds as $entitlementId) {
-            if (is_string($entitlementId) && $entitlementId !== '') {
-                return $entitlementId;
-            }
+            if (! is_string($entitlementId) || $entitlementId === '') continue;
+            $normalized = strtolower($entitlementId);
+            if (in_array($normalized, ['premium', 'premium_android', 'premium android', 'tier3', 'tier_3', 'tier3_android', 'tier_3_android'], true)) return $entitlementId;
+            if ($fallback === null && in_array($normalized, ['standard', 'standard_andriod', 'tier2', 'tier_2', 'tier2_android', 'tier_2_android'], true)) $fallback = $entitlementId;
         }
 
-        return null;
+        return $fallback;
     }
 
     private function fromMilliseconds(int|float|string|null $milliseconds): ?Carbon
@@ -225,6 +497,13 @@ class RevenueCatWebhookController extends Controller
         $effectiveExpiresAt = $incomingExpiresAt ?? $currentExpiresAt;
         $isExpired = $effectiveExpiresAt ? $effectiveExpiresAt->isPast() : false;
 
+        if ($eventType === 'REFUND') {
+            return [
+                'tier_id' => $freeTierId,
+                'active' => false,
+            ];
+        }
+
         if ($eventType === self::EVENT_EXPIRATION) {
 
             if ($incomingExpiresAt && $incomingExpiresAt->isFuture()) {
@@ -240,7 +519,7 @@ class RevenueCatWebhookController extends Controller
             ];
         }
 
-        if ($eventType === self::EVENT_CANCELLATION) {
+        if (in_array($eventType, [self::EVENT_CANCELLATION, 'UNCANCELLATION', 'SUBSCRIPTION_EXTENDED', 'SUBSCRIPTION_PAUSED'], true)) {
             return [
                 'tier_id' => $incomingTierId,
                 'active' => ! $isExpired,

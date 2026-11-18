@@ -16,20 +16,28 @@ use App\Http\Requests\ResetPasswordRequest;
 use App\Http\Requests\VerifyOtpRequest;
 use App\Models\DeviceFingerprint;
 use App\Models\Subscription;
+use App\Organization\Http\Resources\CorporateJoinResource;
+use App\Organization\Services\CorporateOnboardingService;
 
 class AuthController extends Controller
 {
     public function __construct(
-        protected AuthService $authService
+        protected AuthService $authService,
+        protected CorporateOnboardingService $corporateOnboarding,
     ) {}
 
     public function register(RegisterRequest $request)
     {
         $result = $this->authService->register($request->validated());
 
+        // Corporate work-email join. Never fails the registration; the status says what happened.
+        $corporateJoin = $this->corporateOnboarding->joinOnRegistration($result['user']->id);
+        $corporateJoin->membership?->loadMissing('organization');
+
         return response()->json([
             'token' => $result['token'],
             'user'  => new UserResource($result['user']),
+            'corporate_join' => CorporateJoinResource::make($corporateJoin)->resolve($request),
         ], 201);
     }
 
@@ -93,6 +101,22 @@ class AuthController extends Controller
         ]);
     }
 
+    public function recordActivity(Request $request)
+    {
+        $data = $request->validate([
+            'timezone' => 'required|timezone:all',
+            'active_at' => 'sometimes|date',
+        ]);
+        // Offline retries preserve the actual foreground time, with future device clock skew clamped.
+        $activeAt = isset($data['active_at']) ? \Illuminate\Support\Carbon::parse($data['active_at'])->utc()->min(now()->utc()) : now()->utc();
+        $user = $request->user();
+        $user->forceFill(['notification_timezone' => $data['timezone']])->save();
+        $user->newQuery()->whereKey($user->id)
+            ->where(fn ($query) => $query->whereNull('last_active_at')->orWhere('last_active_at', '<', $activeAt))
+            ->update(['last_active_at' => $activeAt]);
+        return response()->json(['message' => 'Activity recorded']);
+    }
+
     public function forgotPassword(ForgotPasswordRequest $request)
     {
         $this->authService->sendResetPasswordEmail($request->email);
@@ -138,7 +162,7 @@ class AuthController extends Controller
 
             Subscription::where('user_id', $user->id)->delete();
 
-            $user->tokens()->delete();
+            $user->revokeMobileTokens();
             $user->delete();
 
             return response()->json([

@@ -23,6 +23,7 @@ class UserProfileResource extends JsonResource
             'age' => $age,
             'set_your_goal' => $goalHours !== null ? (float) $goalHours : null,
             'Set_your_goal_minutes' => $goalMinutes,
+            'category_ids' => $this->hobbies->pluck('id')->map(fn ($id) => (string) $id)->values()->all(),
             'category' => $this->hobbies->pluck('name')->values()->all(),
             'onboarding_completed' => $this->onboarding_completed,
         ];

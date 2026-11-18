@@ -36,10 +36,16 @@ class FcmService
 
     protected function sendToToken(string $token, string $title, string $body, array $data): void
     {
+        $this->deliver($token, $title, $body, $data);
+    }
+
+    /** True means FCM accepted the message, not that the device displayed it. */
+    public function deliver(string $token, string $title, string $body, array $data = [], ?string $channel = null, ?string $tag = null): bool
+    {
         $accessToken = $this->getAccessToken();
 
         if (! $accessToken) {
-            return;
+            return false;
         }
 
         $projectId = config('services.firebase.project_id');
@@ -54,7 +60,11 @@ class FcmService
                             'body' => $body,
                         ],
                         'data' => array_map('strval', $data),
-                        'android' => ['priority' => 'high'],
+                        'android' => array_filter([
+                            'priority' => 'high',
+                            'ttl' => $channel ? '3600s' : null,
+                            'notification' => $channel ? array_filter(['channel_id' => $channel, 'tag' => $tag]) : null,
+                        ]),
                         'apns' => [
                             'headers' => ['apns-priority' => '10'],
                         ],
@@ -67,8 +77,10 @@ class FcmService
                     'body' => $response->body(),
                 ]);
             }
+            return $response->successful();
         } catch (\Throwable $e) {
             Log::warning('FCM push threw an exception', ['message' => $e->getMessage()]);
+            return false;
         }
     }
 

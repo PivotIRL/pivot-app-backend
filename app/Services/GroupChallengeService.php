@@ -14,9 +14,11 @@ use App\Events\GroupChallengeStarted;
 use App\Exceptions\GroupChallengeException;
 use App\Models\GroupChallengeParticipant;
 use App\Models\GroupChallengeSession;
+use App\Models\Activity;
 use App\Models\User;
 use App\Models\Users;
 use App\Support\GroupChallengeStatus;
+use App\Services\Membership\MembershipAccessService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -25,6 +27,7 @@ class GroupChallengeService
     public function __construct(
         protected AuthService $authService,
         protected FcmService $fcmService,
+        protected MembershipAccessService $membershipAccess,
     ) {}
 
     /**
@@ -44,6 +47,9 @@ class GroupChallengeService
             $users = User::whereIn('id', $participantIds)->lockForUpdate()->get()->keyBy('id');
 
             $this->assertAllReady($users);
+            $activity = $challengeId ? Activity::find($challengeId) : null;
+            if ($challengeId && ! $activity) throw new GroupChallengeException('Challenge not found.', 404);
+            foreach ($users as $participant) $this->assertMembershipAllowsActivity($participant, $activity);
 
             $session = GroupChallengeSession::create([
                 'challenge_id' => $challengeId,
@@ -96,6 +102,7 @@ class GroupChallengeService
         }
 
         return DB::transaction(function () use ($host, $session, $requestedIds) {
+            $this->assertMembershipAllowsActivity($host, $session->challenge);
             $existingParticipants = $session->participants()
                 ->whereIn('user_id', $requestedIds)
                 ->get()
@@ -107,6 +114,7 @@ class GroupChallengeService
                 $newUsers = User::whereIn('id', $brandNewIds)->lockForUpdate()->get()->keyBy('id');
 
                 $this->assertAllReady($newUsers);
+                foreach ($newUsers as $newUser) $this->assertMembershipAllowsActivity($newUser, $session->challenge);
 
                 foreach ($brandNewIds as $id) {
                     GroupChallengeParticipant::create([
@@ -160,6 +168,8 @@ class GroupChallengeService
         $this->assertSessionPending($session);
 
         $participant = $this->findParticipantOrFail($session, $user);
+
+        $this->assertMembershipAllowsActivity($user, $session->challenge);
 
         if ($participant->invite_status !== GroupChallengeParticipant::INVITE_STATUS_INVITED) {
             throw new GroupChallengeException('You have already responded to this invite.');
@@ -243,6 +253,10 @@ class GroupChallengeService
             throw new GroupChallengeException('No teammates have joined this challenge yet.');
         }
 
+        foreach ($session->participants()->where('invite_status', GroupChallengeParticipant::INVITE_STATUS_ACCEPTED)->with('user')->get() as $participant) {
+            if ($participant->user) $this->assertMembershipAllowsActivity($participant->user, $session->challenge);
+        }
+
         $session->update([
             'status' => GroupChallengeSession::STATUS_IN_PROGRESS,
             'started_at' => now(),
@@ -314,6 +328,10 @@ class GroupChallengeService
 
         if ($session->status !== GroupChallengeSession::STATUS_PAUSED) {
             throw new GroupChallengeException('This challenge is not currently paused.');
+        }
+
+        foreach ($session->participants()->where('invite_status', GroupChallengeParticipant::INVITE_STATUS_ACCEPTED)->with('user')->get() as $participant) {
+            if ($participant->user) $this->assertMembershipAllowsActivity($participant->user, $session->challenge);
         }
 
         $session->update(['status' => GroupChallengeSession::STATUS_IN_PROGRESS]);
@@ -423,6 +441,7 @@ class GroupChallengeService
         }
 
         $participant = $this->findAcceptedParticipantOrFail($session, $user);
+        $this->assertMembershipAllowsActivity($user, $session->challenge);
 
         $participant->update(['progress' => $progress]);
 
@@ -440,11 +459,14 @@ class GroupChallengeService
 
     public function complete(User|Users $user, GroupChallengeSession $session): GroupChallengeParticipant
     {
+        $participant = $this->findAcceptedParticipantOrFail($session, $user);
+        if ($participant->completed_at) return $participant;
+
         if ($session->status !== GroupChallengeSession::STATUS_IN_PROGRESS) {
             throw new GroupChallengeException('This challenge is not in progress.');
         }
 
-        $participant = $this->findAcceptedParticipantOrFail($session, $user);
+        $this->assertMembershipAllowsActivity($user, $session->challenge);
 
         $participant->update(['completed_at' => now()]);
 
@@ -630,5 +652,21 @@ class GroupChallengeService
         }
 
         return $participant;
+    }
+
+    protected function assertMembershipAllowsActivity(User|Users $user, ?Activity $activity): void
+    {
+        if (! $activity) return;
+        $account = $user instanceof User ? $user : User::find($user->id);
+        if (! $account) throw new GroupChallengeException('Account not found.', 404);
+
+        $snapshot = $this->membershipAccess->snapshot($account);
+        $allowedCategories = $snapshot['effective_package'] !== null && $snapshot['limits']['category_count'] !== null
+            ? (count($snapshot['selected_category_ids']) === $snapshot['limits']['category_count'] ? $snapshot['selected_category_ids'] : [])
+            : null;
+
+        if (($snapshot['effective_package'] === null && (int) $activity->tier > 1) || ($allowedCategories !== null && ! in_array((string) $activity->hobby_id, $allowedCategories, true))) {
+            throw new GroupChallengeException('Your current membership does not allow this challenge.', 403);
+        }
     }
 }

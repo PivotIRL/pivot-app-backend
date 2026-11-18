@@ -48,16 +48,21 @@ class ChallengePackController extends Controller
 
     public function decrementRemaining(Request $request): JsonResponse
     {
-        $request->validate([
-            'user_id' => 'required|integer',
+        $data = $request->validate([
+            'user_id' => 'sometimes|integer',
             'transaction_id' => 'required|string',
-            'usage_count' => 'required|integer'
+            'usage_count' => 'required|integer|min:1'
         ]);
 
+        $userId = (int) $request->user()->id;
+        if (isset($data['user_id']) && (int) $data['user_id'] !== $userId) {
+            return response()->json(['message' => 'The requested user does not match the authenticated account.'], 403);
+        }
+
         $details = $this->challengePackService->update(
-            (int) $request->user_id,
-            $request->transaction_id,
-            (int) $request->usage_count
+            $userId,
+            $data['transaction_id'],
+            (int) $data['usage_count']
         );
 
         if (!$details) {

@@ -1,0 +1,46 @@
+
+name: Deploy Pivot Staging
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pivot-staging-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Staging EC2
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 15
+
+    steps:
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.STAGING_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy Laravel to EC2
+        env:
+          SSH_HOST: ${{ secrets.STAGING_HOST }}
+          SSH_USERNAME: ${{ secrets.STAGING_USERNAME }}
+        run: |
+          ssh -o BatchMode=yes \
+              -o StrictHostKeyChecking=yes \
+              -i ~/.ssh/id_ed25519 \
+              "$SSH_USERNAME@$SSH_HOST" \
+              "/home/ubuntu/deploy-pivot-staging.sh"
