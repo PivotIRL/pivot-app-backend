@@ -142,7 +142,7 @@ The same organization architecture supports different customer sectors.
 Fields below are the recommended fields from the architecture document.
 
 - [ ] 1. **organizations** – Corporate/education customer master record.
-  `id UUID PK; name; slug; organization_type; account_type; status; package_code; seat_limit; contract_start_at; contract_end_at; timezone; country_code; pricing_config JSONB; reporting_config JSONB; created_by; timestamps; deleted_at`
+  `id BIGINT PK (auto-increment); name; slug; organization_type; account_type; status; package_code; seat_limit; contract_start_at; contract_end_at; timezone; country_code; pricing_config JSONB; reporting_config JSONB; created_by; timestamps; deleted_at`
 - [ ] 2. **organization_domains** – Approved email domains used for automatic onboarding.
   `id; organization_id FK; domain UNIQUE; status; is_primary; verification_method; include_subdomains; verified_at; timestamps`
 - [ ] 3. **organization_memberships** – Authoritative seat/member lifecycle record.

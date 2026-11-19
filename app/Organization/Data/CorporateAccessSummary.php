@@ -9,7 +9,7 @@ use App\Organization\Models\OrganizationDashboardAccount;
 use App\Organization\Models\OrganizationMembership;
 
 /**
- * The signed-in dashboard user's access, returned by dashboard login and GET /corporate/me.
+ * The signed-in dashboard user's access, returned by dashboard login and GET /organization/me.
  */
 final class CorporateAccessSummary
 {

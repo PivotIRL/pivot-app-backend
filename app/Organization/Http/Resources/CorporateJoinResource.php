@@ -22,7 +22,7 @@ class CorporateJoinResource extends JsonResource
             'join_status' => $this->status->value,
             'message' => $this->status->message(),
             'organization' => $organization ? [
-                'id' => $organization->id,
+                'id' => (int) $organization->id,
                 'name' => $organization->name,
                 'package_code' => $organization->package_code->value,
                 'contract_end_at' => $organization->contract_end_at,

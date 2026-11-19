@@ -47,7 +47,7 @@ class CorporateAccessSummaryResource extends JsonResource
         return [
             // A summary only: members must not see seat limits or contract history here.
             'organization' => [
-                'id' => $organization->id,
+                'id' => (int) $organization->id,
                 'name' => $organization->name,
                 'slug' => $organization->slug,
                 'status' => $organization->status?->value,

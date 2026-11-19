@@ -10,7 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * GET /corporate/permissions: the permissions the signed-in dashboard user may see, flat and grouped.
+ * GET /organization/permissions: the permissions the signed-in dashboard user may see, flat and grouped.
  * Pivot-controlled permissions are listed only for Pivot staff.
  */
 class PermissionCatalogController extends Controller

@@ -272,7 +272,7 @@ Routes use `->scopeBindings()`. A child model such as `{roleAssignment}` is reso
 
 ### Other layers of defence
 
-- `{organization}` must be a UUID (`whereUuid`), so a malformed ID never reaches the database.
+- `{organization}` must be numeric (`whereNumber`), so a malformed ID never reaches the database.
 - `OrganizationAccessService` itself refuses delegated permissions for suspended or removed organizations. Code outside HTTP (jobs, commands) gets the same protection.
 - Repositories always filter by `organization_id` (for example, audit logs are listed per organization only).
 
@@ -352,7 +352,7 @@ The **only** way to write `organization_audit_logs`. Every admin, SSO and SCIM c
 ```php
 $this->audit->record(
     action: AuditAction::ORGANIZATION_ROLE_ASSIGNED,   // required, AuditAction enum
-    organization: $organization,                       // Organization | uuid string | null (platform-level)
+    organization: $organization,                       // Organization | int | null (platform-level)
     target: $assignment,                               // any Eloquent model | null
     metadata: ['user_id' => $user->id, 'role' => $role->value],
     actor: $actor,                                     // defaults to the authenticated user
@@ -434,7 +434,7 @@ $user->organizationMemberships();                 // HasMany
 
 ## 10. API reference
 
-Base path: `/api/v1/organizations/{organization}` (UUID). All routes need `Authorization: Bearer <dashboard token>` (from `POST /api/v1/organization/auth/login`; mobile tokens get 401) and pass `organization.tenant`.
+Base path: `/api/v1/organizations/{organization}` (numeric ID). All routes need `Authorization: Bearer <dashboard token>` (from `POST /api/v1/organization/auth/login`; mobile tokens get 401) and pass `organization.tenant`.
 
 | Method | Path | Policy check | Success |
 |---|---|---|---|
@@ -451,7 +451,7 @@ Base path: `/api/v1/organizations/{organization}` (UUID). All routes need `Autho
 **Assign a role**
 
 ```http
-POST /api/v1/organizations/9d3f.../roles
+POST /api/v1/organizations/12/roles
 Content-Type: application/json
 
 { "user_id": 42, "role": "ORG_ANALYST" }
@@ -460,7 +460,7 @@ Content-Type: application/json
 ```json
 {
   "id": 17,
-  "organization_id": "9d3f...",
+  "organization_id": 12,
   "role": "ORG_ANALYST",
   "user": { "id": 42, "name": "Jane Doe", "email": "jane@acme.com" },
   "assigned_by": 7,
@@ -473,7 +473,7 @@ Content-Type: application/json
 **Revoke a role**
 
 ```http
-DELETE /api/v1/organizations/9d3f.../roles/17
+DELETE /api/v1/organizations/12/roles/17
 Content-Type: application/json
 
 { "reason": "Left the HR team" }
@@ -482,7 +482,7 @@ Content-Type: application/json
 **Suspend an organization**
 
 ```http
-POST /api/v1/organizations/9d3f.../suspend
+POST /api/v1/organizations/12/suspend
 Content-Type: application/json
 
 { "reason": "Unpaid invoice" }
@@ -493,7 +493,7 @@ Content-Type: application/json
 ```json
 {
   "id": 301,
-  "organization_id": "9d3f...",
+  "organization_id": 12,
   "action": "organization_role.assigned",
   "actor_type": "user",
   "actor": { "id": 7, "name": "Admin User", "email": "admin@acme.com" },
@@ -607,3 +607,14 @@ Every new corporate endpoint follows the same pattern ("Policy check + tenant sc
 - [ ] `php artisan pivot:role <your-email> PIVOT_SUPER_ADMIN`
 - [ ] Assign the first `ORG_OWNER` of the test organization through `POST /api/v1/organizations/{id}/roles` as Super Admin
 - [ ] `php artisan test tests/Feature/Organization`
+
+## Organization ID: UUID to BIGINT
+
+`organizations.id` is an auto-increment BIGINT and every `organization_id` column is BIGINT. API responses return the ID as a JSON number.
+
+- Migration `2026_11_19_000001_convert_organization_ids_to_bigint` converts the schema. The original `create_*` migrations still create UUIDs: a fresh install builds the UUID schema, then this migration converts the empty tables, so fresh and upgraded databases end identical.
+- `organization_id_map (old_uuid, new_id)` is kept after the migration. `organization_conversion_snapshot` keeps the foreign key, unique constraint and index definitions that were recreated.
+- Audit rows: `target_id` is remapped for organization targets. Audit metadata is remapped only in the keys `organization_id`, `previous_organization_id`, `from_organization_id`, `to_organization_id`; a UUID anywhere else aborts the migration.
+- Rollback (`down`) restores UUIDs from the map. Organizations created after the conversion get a new UUID (added to the map), so their numeric IDs stop being valid after a rollback.
+- The sequence restarts above the highest ID in `organizations` and in the map, so an ID is never reused.
+- IDs are guessable now: isolation relies on `organization.tenant` and the policies (see the enumeration tests in `TenantIsolationTest`).

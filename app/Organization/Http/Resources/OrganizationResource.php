@@ -13,7 +13,7 @@ class OrganizationResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'id' => (int) $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
             'organization_type' => $this->organization_type?->value,

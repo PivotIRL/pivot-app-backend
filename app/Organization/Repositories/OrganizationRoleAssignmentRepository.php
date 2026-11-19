@@ -10,7 +10,7 @@ use Illuminate\Support\Collection;
 
 class OrganizationRoleAssignmentRepository implements OrganizationRoleAssignmentRepositoryInterface
 {
-    public function activeRolesFor(int $userId, string $organizationId): Collection
+    public function activeRolesFor(int $userId, int $organizationId): Collection
     {
         return OrganizationRoleAssignment::query()
             ->where('organization_id', $organizationId)
@@ -20,7 +20,7 @@ class OrganizationRoleAssignmentRepository implements OrganizationRoleAssignment
             ->pluck('role');
     }
 
-    public function paginateActive(string $organizationId, ?OrganizationRole $role, int $perPage): LengthAwarePaginator
+    public function paginateActive(int $organizationId, ?OrganizationRole $role, int $perPage): LengthAwarePaginator
     {
         return OrganizationRoleAssignment::query()
             ->with('user:id,name,email')
@@ -32,7 +32,7 @@ class OrganizationRoleAssignmentRepository implements OrganizationRoleAssignment
             ->paginate($perPage);
     }
 
-    public function findActive(string $organizationId, int $userId, OrganizationRole $role): ?OrganizationRoleAssignment
+    public function findActive(int $organizationId, int $userId, OrganizationRole $role): ?OrganizationRoleAssignment
     {
         return OrganizationRoleAssignment::query()
             ->where('organization_id', $organizationId)
@@ -54,7 +54,7 @@ class OrganizationRoleAssignmentRepository implements OrganizationRoleAssignment
         return $assignment;
     }
 
-    public function revokeAllFor(string $organizationId, int $userId): Collection
+    public function revokeAllFor(int $organizationId, int $userId): Collection
     {
         $active = OrganizationRoleAssignment::query()
             ->where('organization_id', $organizationId)

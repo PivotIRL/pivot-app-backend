@@ -205,7 +205,7 @@ Invalid transitions return **409**, e.g. restoring an active member or suspendin
 
 All flows run for the **signed-in user**. They link the existing Pivot account and never create a second one.
 
-### Work email — `POST /api/v1/corporate/join/work-email`
+### Work email — `POST /api/v1/organization/join/work-email`
 
 1. Normalize the email (trim, lowercase) and take the part after `@`.
 2. Find the **verified** domain:
@@ -216,7 +216,7 @@ All flows run for the **signed-in user**. They link the existing Pivot account a
 3. If none is found, return `DOMAIN_NOT_RECOGNIZED`.
 4. Otherwise `SeatService::allocate(..., via: work_email)`.
 
-### Organization code — `POST /api/v1/corporate/join/code` `{ "code": "PIVOT-…" }`
+### Organization code — `POST /api/v1/organization/join/code` `{ "code": "PIVOT-…" }`
 
 One transaction:
 1. Hash the code (trimmed, uppercased, SHA-256) and lock the code row.
@@ -243,7 +243,7 @@ Lock order is always code → organization (and invitation → organization), so
 - Inviting someone who is already an active member returns **409**.
 - Revoking (`DELETE …/invitations/{invitation}`) works only for pending invitations. An `invited` membership becomes `deactivated` with reason `invitation_revoked`; that reason does not block a later self-service join.
 
-**Employee:** `POST /api/v1/corporate/invitations/accept` `{ "token": "…" }`
+**Employee:** `POST /api/v1/organization/invitations/accept` `{ "token": "…" }`
 
 One transaction:
 1. Lock the invitation.
@@ -325,12 +325,12 @@ Employee (any signed-in Mobile App user with a mobile token; middleware `auth:sa
 
 | Method | Path | Body | Success |
 |---|---|---|---|
-| POST | `/api/v1/corporate/join/work-email` | — | 201 / 200 `CorporateJoinResource` |
-| POST | `/api/v1/corporate/join/code` | `code` | 201 / 200 |
-| POST | `/api/v1/corporate/invitations/accept` | `token` | 201 / 200 |
+| POST | `/api/v1/organization/join/work-email` | — | 201 / 200 `CorporateJoinResource` |
+| POST | `/api/v1/organization/join/code` | `code` | 201 / 200 |
+| POST | `/api/v1/organization/invitations/accept` | `token` | 201 / 200 |
 | POST | `/api/v1/auth/register` | (unchanged) | 201 + `corporate_join` |
 
-Dashboard profile (dashboard token; middleware `auth:organization-dashboard`, `organization.dashboard`): `GET /api/v1/corporate/me` returns 200 `CorporateAccessSummaryResource`: the user's account and the organizations, roles and permissions they can use now.
+Dashboard profile (dashboard token; middleware `auth:organization-dashboard`, `organization.dashboard`): `GET /api/v1/organization/me` returns 200 `CorporateAccessSummaryResource`: the user's account and the organizations, roles and permissions they can use now.
 
 Admin (tenant-scoped, dashboard token; middleware `auth:organization-dashboard`, `organization.dashboard`, `organization.tenant`; `{membership}` and `{invitation}` resolve only inside `{organization}`):
 
@@ -347,7 +347,7 @@ Admin (tenant-scoped, dashboard token; middleware `auth:organization-dashboard`,
 ### Examples
 
 ```http
-POST /api/v1/corporate/join/code
+POST /api/v1/organization/join/code
 Authorization: Bearer <token>
 { "code": "PIVOT-7Q2…" }
 

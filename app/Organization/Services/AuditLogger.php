@@ -33,13 +33,13 @@ class AuditLogger
     ) {}
 
     /**
-     * @param  Organization|string|null  $organization  Null for platform-level events.
+     * @param  Organization|int|null  $organization  Null for platform-level events.
      * @param  User|null  $actor  Defaults to the authenticated user; null with no user means a system action.
      * @param  AuditActorType|null  $actorType  Set explicitly for SSO / SCIM actors.
      */
     public function record(
         AuditAction $action,
-        Organization|string|null $organization = null,
+        Organization|int|null $organization = null,
         ?Model $target = null,
         array $metadata = [],
         ?User $actor = null,

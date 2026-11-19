@@ -41,15 +41,15 @@ Route::middleware(['auth:organization-dashboard', 'organization.dashboard'])->gr
     Route::post('organization/auth/logout', [OrganizationDashboardAuthController::class, 'logout'])->name('organization.auth.logout');
 
     // The signed-in dashboard user's own organizations, roles and permissions.
-    Route::get('corporate/me', [CorporateAccessController::class, 'me'])->name('corporate.me');
+    Route::get('organization/me', [CorporateAccessController::class, 'me'])->name('organization.me');
 
     // Role and permission definitions (what exists, not what the user holds).
-    Route::get('corporate/roles', [RoleCatalogController::class, 'index'])->name('corporate.roles.index');
-    Route::get('corporate/permissions', [PermissionCatalogController::class, 'index'])->name('corporate.permissions.index');
+    Route::get('organization/roles', [RoleCatalogController::class, 'index'])->name('organization.roles.index');
+    Route::get('organization/permissions', [PermissionCatalogController::class, 'index'])->name('organization.permissions.index');
 
     Route::middleware('organization.tenant')
         ->prefix('organizations/{organization}')
-        ->whereUuid('organization')
+        ->whereNumber('organization')
         ->scopeBindings()
         ->name('organizations.')
         ->group(function () {
@@ -97,15 +97,15 @@ Route::middleware(['auth:organization-dashboard', 'organization.dashboard'])->gr
         ->group(function () {
             Route::get('/', [OrganizationController::class, 'index'])->name('index');
             Route::post('/', [OrganizationController::class, 'store'])->name('store');
-            Route::put('{organization}', [OrganizationController::class, 'update'])->whereUuid('organization')->name('update');
-            Route::post('{organization}/contracts/renew', [OrganizationController::class, 'renew'])->whereUuid('organization')->name('contracts.renew');
+            Route::put('{organization}', [OrganizationController::class, 'update'])->whereNumber('organization')->name('update');
+            Route::post('{organization}/contracts/renew', [OrganizationController::class, 'renew'])->whereNumber('organization')->name('contracts.renew');
         });
 });
 
 // 3. Mobile App employee onboarding (B4): any signed-in user joins with their own existing account, never a new one.
 Route::middleware(['auth:sanctum', 'organization.user'])
-    ->prefix('corporate')
-    ->name('corporate.')
+    ->prefix('organization')
+    ->name('organization.')
     ->group(function () {
         Route::post('join/work-email', [CorporateJoinController::class, 'workEmail'])->name('join.work-email');
         Route::post('join/code', [CorporateJoinController::class, 'redeemCode'])->name('join.code');
