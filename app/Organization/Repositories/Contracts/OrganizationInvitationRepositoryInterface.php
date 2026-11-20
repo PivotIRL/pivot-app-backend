@@ -14,7 +14,7 @@ interface OrganizationInvitationRepositoryInterface
 
     public function create(Organization $organization, array $data): OrganizationInvitation;
 
-    public function findPending(string $organizationId, string $email): ?OrganizationInvitation;
+    public function findPending(int $organizationId, string $email): ?OrganizationInvitation;
 
     /**
      * Finds an invitation by token hash and locks its row until the transaction ends, so it is accepted once.

@@ -17,7 +17,7 @@ class OrganizationAuditLogResource extends JsonResource
 
         return [
             'id' => $this->id,
-            'organization_id' => $this->organization_id,
+            'organization_id' => $this->organization_id === null ? null : (int) $this->organization_id,
             'action' => $this->action->value,
             'actor_type' => $this->actor_type->value,
             'actor' => $this->whenLoaded('actor', fn () => $this->actor ? [
@@ -26,7 +26,7 @@ class OrganizationAuditLogResource extends JsonResource
                 'email' => $this->actor->email,
             ] : null),
             'target_type' => $this->target_type,
-            'target_id' => $this->target_id,
+            'target_id' => $this->target_type === 'organization' && is_numeric($this->target_id) ? (int) $this->target_id : $this->target_id,
             'metadata' => $this->metadata ?? (object) [],
             'ip_address' => $this->when($isPivotStaff, $this->ip_address),
             'user_agent' => $this->when($isPivotStaff, $this->user_agent),

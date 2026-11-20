@@ -200,11 +200,11 @@ class OrganizationDashboardAuthTest extends TestCase
         $organization = OrganizationMembership::where('user_id', $account->user_id)->sole()->organization;
         $token = $this->dashboardToken($account);
 
-        $this->bearer($token)->getJson('/api/v1/corporate/me')->assertOk();
+        $this->bearer($token)->getJson('/api/v1/organization/me')->assertOk();
 
         OrganizationMembership::where('user_id', $account->user_id)->update(['status' => $status]);
 
-        $this->bearer($token)->getJson('/api/v1/corporate/me')->assertForbidden();
+        $this->bearer($token)->getJson('/api/v1/organization/me')->assertForbidden();
         $this->bearer($token)->getJson("/api/v1/organizations/{$organization->id}")->assertForbidden();
         $this->bearer($token)->postJson('/api/v1/organization/auth/logout')->assertForbidden();
     }
@@ -216,10 +216,10 @@ class OrganizationDashboardAuthTest extends TestCase
         $membership = OrganizationMembership::where('user_id', $account->user_id);
 
         $membership->update(['status' => MembershipStatus::EXPIRED]);
-        $this->bearer($token)->getJson('/api/v1/corporate/me')->assertForbidden();
+        $this->bearer($token)->getJson('/api/v1/organization/me')->assertForbidden();
 
         $membership->update(['status' => MembershipStatus::ACTIVE]);
-        $this->bearer($token)->getJson('/api/v1/corporate/me')->assertOk();
+        $this->bearer($token)->getJson('/api/v1/organization/me')->assertOk();
     }
 
     public function test_active_and_pending_organizations_allow_access(): void
@@ -243,7 +243,7 @@ class OrganizationDashboardAuthTest extends TestCase
 
             $organization->update(['status' => $status]);
 
-            $this->bearer($token)->getJson('/api/v1/corporate/me')->assertForbidden();
+            $this->bearer($token)->getJson('/api/v1/organization/me')->assertForbidden();
             $this->bearer($token)->getJson("/api/v1/organizations/{$organization->id}")->assertForbidden();
             $this->dashboardLogin($account)->assertForbidden();
         }
@@ -272,7 +272,7 @@ class OrganizationDashboardAuthTest extends TestCase
         $this->grantRole($user, $expired, OrganizationRole::ORG_OWNER);
         $token = $this->dashboardToken($this->makeDashboardAccount($user));
 
-        $this->bearer($token)->getJson('/api/v1/corporate/me')
+        $this->bearer($token)->getJson('/api/v1/organization/me')
             ->assertOk()
             ->assertJsonCount(1, 'organizations')
             ->assertJsonPath('organizations.0.organization.id', $open->id);
@@ -302,13 +302,13 @@ class OrganizationDashboardAuthTest extends TestCase
         $assignment = $account->user->organizationRoleAssignments()->sole();
 
         $assignment->update(['revoked_at' => now()]);
-        $this->bearer($token)->getJson('/api/v1/corporate/me')->assertForbidden();
+        $this->bearer($token)->getJson('/api/v1/organization/me')->assertForbidden();
 
         $assignment->update(['revoked_at' => null]);
-        $this->bearer($token)->getJson('/api/v1/corporate/me')->assertOk();
+        $this->bearer($token)->getJson('/api/v1/organization/me')->assertOk();
 
         $account->forceFill(['disabled_at' => now()])->save();
-        $this->bearer($token)->getJson('/api/v1/corporate/me')
+        $this->bearer($token)->getJson('/api/v1/organization/me')
             ->assertForbidden()
             ->assertExactJson(['message' => 'This dashboard account has been disabled.']);
     }
@@ -320,7 +320,7 @@ class OrganizationDashboardAuthTest extends TestCase
 
         $this->travel(13)->hours();
 
-        $this->bearer($token)->getJson('/api/v1/corporate/me')->assertUnauthorized();
+        $this->bearer($token)->getJson('/api/v1/organization/me')->assertUnauthorized();
     }
 
     // Pivot staff
@@ -381,11 +381,11 @@ class OrganizationDashboardAuthTest extends TestCase
         $staff = $this->makeStaff(PivotRole::PIVOT_SUPPORT);
         $token = $this->dashboardToken($this->makeDashboardAccount($staff));
 
-        $this->bearer($token)->getJson('/api/v1/corporate/me')->assertOk();
+        $this->bearer($token)->getJson('/api/v1/organization/me')->assertOk();
 
         $staff->forceFill(['pivot_role' => null])->save();
 
-        $this->bearer($token)->getJson('/api/v1/corporate/me')->assertForbidden();
+        $this->bearer($token)->getJson('/api/v1/organization/me')->assertForbidden();
     }
 
     // Token isolation
@@ -400,7 +400,7 @@ class OrganizationDashboardAuthTest extends TestCase
         $socialLoginToken = $user->createToken('mobile')->plainTextToken;
 
         foreach ([$emailLoginToken, $socialLoginToken] as $token) {
-            $this->bearer($token)->getJson('/api/v1/corporate/me')->assertUnauthorized();
+            $this->bearer($token)->getJson('/api/v1/organization/me')->assertUnauthorized();
             $this->bearer($token)->postJson('/api/v1/organization/auth/logout')->assertUnauthorized();
             $this->bearer($token)->getJson('/api/v1/organizations')->assertUnauthorized();
             $this->bearer($token)->getJson("/api/v1/organizations/{$organization->id}")->assertUnauthorized();
@@ -425,9 +425,9 @@ class OrganizationDashboardAuthTest extends TestCase
         $this->bearer($token)->getJson('/api/v1/user/current-user')->assertUnauthorized();
         $this->bearer($token)->getJson('/api/user')->assertUnauthorized();
         $this->bearer($token)->postJson('/api/v1/auth/logout')->assertUnauthorized();
-        $this->bearer($token)->postJson('/api/v1/corporate/join/work-email')->assertUnauthorized();
-        $this->bearer($token)->postJson('/api/v1/corporate/join/code', ['code' => 'X'])->assertUnauthorized();
-        $this->bearer($token)->postJson('/api/v1/corporate/invitations/accept', ['token' => 'X'])->assertUnauthorized();
+        $this->bearer($token)->postJson('/api/v1/organization/join/work-email')->assertUnauthorized();
+        $this->bearer($token)->postJson('/api/v1/organization/join/code', ['code' => 'X'])->assertUnauthorized();
+        $this->bearer($token)->postJson('/api/v1/organization/invitations/accept', ['token' => 'X'])->assertUnauthorized();
     }
 
     public function test_a_dashboard_guard_token_without_the_dashboard_ability_is_rejected(): void
@@ -435,12 +435,12 @@ class OrganizationDashboardAuthTest extends TestCase
         $account = $this->dashboardAccountFor(OrganizationRole::ORG_OWNER);
         $token = $account->createToken('something-else', ['other'])->plainTextToken;
 
-        $this->bearer($token)->getJson('/api/v1/corporate/me')->assertUnauthorized();
+        $this->bearer($token)->getJson('/api/v1/organization/me')->assertUnauthorized();
     }
 
     public function test_requests_with_no_token_are_unauthorized(): void
     {
-        $this->getJson('/api/v1/corporate/me')->assertUnauthorized();
+        $this->getJson('/api/v1/organization/me')->assertUnauthorized();
         $this->postJson('/api/v1/organization/auth/logout')->assertUnauthorized();
         $this->getJson('/api/v1/organizations')->assertUnauthorized();
     }
@@ -458,8 +458,8 @@ class OrganizationDashboardAuthTest extends TestCase
             ->assertOk()
             ->assertExactJson(['message' => 'Logged out successfully.']);
 
-        $this->bearer($current)->getJson('/api/v1/corporate/me')->assertUnauthorized();
-        $this->bearer($otherDevice)->getJson('/api/v1/corporate/me')->assertOk();
+        $this->bearer($current)->getJson('/api/v1/organization/me')->assertUnauthorized();
+        $this->bearer($otherDevice)->getJson('/api/v1/organization/me')->assertOk();
         $this->bearer($mobile)->getJson('/api/v1/user/current-user')->assertOk();
     }
 
@@ -472,7 +472,7 @@ class OrganizationDashboardAuthTest extends TestCase
         $this->bearer($mobile)->postJson('/api/v1/auth/logout')->assertOk();
 
         $this->bearer($mobile)->getJson('/api/v1/user/current-user')->assertUnauthorized();
-        $this->bearer($dashboard)->getJson('/api/v1/corporate/me')->assertOk();
+        $this->bearer($dashboard)->getJson('/api/v1/organization/me')->assertOk();
     }
 
     // Separate credentials
@@ -522,7 +522,7 @@ class OrganizationDashboardAuthTest extends TestCase
         $this->assertTrue(Hash::check(self::NEW_PASSWORD, $account->fresh()->password));
         $this->assertSame($mobilePasswordHash, $account->user->fresh()->password);
 
-        $this->bearer($dashboardToken)->getJson('/api/v1/corporate/me')->assertUnauthorized();
+        $this->bearer($dashboardToken)->getJson('/api/v1/organization/me')->assertUnauthorized();
         $this->bearer($mobileToken)->getJson('/api/v1/user/current-user')->assertOk();
 
         $this->dashboardLogin($account)->assertUnauthorized();
@@ -739,7 +739,7 @@ class OrganizationDashboardAuthTest extends TestCase
         Users::find($account->user_id)->tokens()->delete();
 
         $this->assertSame($dashboardHash, $account->fresh()->password);
-        $this->bearer($dashboardToken)->getJson('/api/v1/corporate/me')->assertOk();
+        $this->bearer($dashboardToken)->getJson('/api/v1/organization/me')->assertOk();
     }
 
     // Mobile joining flows, with real mobile tokens
@@ -764,7 +764,7 @@ class OrganizationDashboardAuthTest extends TestCase
             ? Users::findOrFail($user->id)->createToken('mobile')->plainTextToken
             : $this->mobileLogin($user)->assertOk()->json('token');
 
-        $this->bearer($token)->postJson('/api/v1/corporate/join/work-email')
+        $this->bearer($token)->postJson('/api/v1/organization/join/work-email')
             ->assertCreated()
             ->assertJsonPath('join_status', 'JOINED')
             ->assertJsonPath('organization.id', $organization->id);
@@ -786,13 +786,13 @@ class OrganizationDashboardAuthTest extends TestCase
 
         // A dashboard token cannot accept on the employee's behalf.
         $this->bearer($staffToken)
-            ->postJson('/api/v1/corporate/invitations/accept', ['token' => $invitationToken])
+            ->postJson('/api/v1/organization/invitations/accept', ['token' => $invitationToken])
             ->assertUnauthorized();
 
         $mobileToken = $this->mobileLogin($invitee)->assertOk()->json('token');
 
         $this->bearer($mobileToken)
-            ->postJson('/api/v1/corporate/invitations/accept', ['token' => $invitationToken])
+            ->postJson('/api/v1/organization/invitations/accept', ['token' => $invitationToken])
             ->assertCreated()
             ->assertJsonPath('join_status', 'JOINED');
     }

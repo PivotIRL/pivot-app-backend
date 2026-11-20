@@ -14,7 +14,7 @@ class OrganizationAuditLogRepository implements OrganizationAuditLogRepositoryIn
         return OrganizationAuditLog::create($data);
     }
 
-    public function paginateForOrganization(string $organizationId, array $filters, int $perPage): LengthAwarePaginator
+    public function paginateForOrganization(int $organizationId, array $filters, int $perPage): LengthAwarePaginator
     {
         return OrganizationAuditLog::query()
             ->with('actor:id,name,email')

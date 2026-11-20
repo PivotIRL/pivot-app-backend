@@ -177,6 +177,53 @@ class TenantIsolationTest extends TestCase
             ->assertJsonCount(0, 'data');
     }
 
+    public function test_organization_ids_are_sequential_integers(): void
+    {
+        $this->assertIsInt($this->orgA->id);
+        $this->assertGreaterThan($this->orgA->id, $this->orgB->id);
+    }
+
+    public function test_guessing_neighbouring_numeric_ids_never_exposes_other_tenants(): void
+    {
+        $adminA = $this->makeOrgUser($this->orgA, OrganizationRole::ORG_ADMIN);
+        $this->actingAsDashboard($adminA);
+
+        foreach (['members', 'domains', 'redemption-codes', 'invitations', 'roles', 'audit-logs'] as $path) {
+            $this->getJson("/api/v1/organizations/{$this->orgB->id}/{$path}")->assertForbidden();
+            $this->getJson('/api/v1/organizations/'.($this->orgB->id + 1000)."/{$path}")->assertNotFound();
+        }
+
+        $this->getJson("/api/v1/organizations/{$this->orgB->id}")->assertForbidden();
+    }
+
+    public function test_cross_organization_id_in_body_is_rejected(): void
+    {
+        $adminA = $this->makeOrgUser($this->orgA, OrganizationRole::ORG_ADMIN);
+        $this->actingAsDashboard($adminA);
+
+        $this->postJson($this->url($this->orgA, 'invitations'), [
+            'organization_id' => $this->orgB->id,
+            'email' => 'someone@example.com',
+            'role' => OrganizationRole::ORG_ANALYST->value,
+        ])->assertForbidden();
+    }
+
+    public function test_non_numeric_and_uuid_organization_ids_return_not_found(): void
+    {
+        $this->actingAsDashboard($this->makeOrgUser($this->orgA, OrganizationRole::ORG_ADMIN));
+
+        $this->getJson('/api/v1/organizations/abc/roles')->assertNotFound();
+        $this->getJson('/api/v1/organizations/9d3f6b1e-1c2a-4f5b-8a7d-0e1f2a3b4c5d/roles')->assertNotFound();
+    }
+
+    public function test_api_returns_organization_ids_as_numbers(): void
+    {
+        $adminA = $this->makeOrgUser($this->orgA, OrganizationRole::ORG_ADMIN);
+        $this->actingAsDashboard($adminA);
+
+        $this->assertSame($this->orgA->id, $this->getJson('/api/v1/organization/me')->assertOk()->json('organizations.0.organization.id'));
+    }
+
     private function url(Organization $organization, string $path): string
     {
         return "/api/v1/organizations/{$organization->id}/{$path}";

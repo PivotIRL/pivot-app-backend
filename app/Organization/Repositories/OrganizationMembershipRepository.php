@@ -11,7 +11,7 @@ use Illuminate\Support\Collection;
 
 class OrganizationMembershipRepository implements OrganizationMembershipRepositoryInterface
 {
-    public function isActiveMember(string $organizationId, int $userId): bool
+    public function isActiveMember(int $organizationId, int $userId): bool
     {
         return OrganizationMembership::query()
             ->where('organization_id', $organizationId)
@@ -20,7 +20,7 @@ class OrganizationMembershipRepository implements OrganizationMembershipReposito
             ->exists();
     }
 
-    public function countActive(string $organizationId): int
+    public function countActive(int $organizationId): int
     {
         return OrganizationMembership::query()
             ->where('organization_id', $organizationId)
@@ -28,7 +28,7 @@ class OrganizationMembershipRepository implements OrganizationMembershipReposito
             ->count();
     }
 
-    public function paginateFor(string $organizationId, ?MembershipStatus $status, int $perPage): LengthAwarePaginator
+    public function paginateFor(int $organizationId, ?MembershipStatus $status, int $perPage): LengthAwarePaginator
     {
         return OrganizationMembership::query()
             ->with('user:id,name,email')
@@ -38,7 +38,7 @@ class OrganizationMembershipRepository implements OrganizationMembershipReposito
             ->paginate($perPage);
     }
 
-    public function findFor(string $organizationId, int $userId): ?OrganizationMembership
+    public function findFor(int $organizationId, int $userId): ?OrganizationMembership
     {
         return OrganizationMembership::query()
             ->where('organization_id', $organizationId)
@@ -67,7 +67,7 @@ class OrganizationMembershipRepository implements OrganizationMembershipReposito
         return $membership;
     }
 
-    public function expireActive(string $organizationId, string $reason, Carbon $at): int
+    public function expireActive(int $organizationId, string $reason, Carbon $at): int
     {
         return OrganizationMembership::query()
             ->where('organization_id', $organizationId)
@@ -80,7 +80,7 @@ class OrganizationMembershipRepository implements OrganizationMembershipReposito
             ]);
     }
 
-    public function deactivateAll(string $organizationId, string $reason, Carbon $at): int
+    public function deactivateAll(int $organizationId, string $reason, Carbon $at): int
     {
         return OrganizationMembership::query()
             ->where('organization_id', $organizationId)
@@ -93,7 +93,7 @@ class OrganizationMembershipRepository implements OrganizationMembershipReposito
             ]);
     }
 
-    public function restorableAfterContractExpiry(string $organizationId, Carbon $at): Collection
+    public function restorableAfterContractExpiry(int $organizationId, Carbon $at): Collection
     {
         return OrganizationMembership::query()
             ->where('organization_id', $organizationId)

@@ -12,5 +12,5 @@ interface OrganizationAuditLogRepositoryInterface
     /**
      * @param  array{action?: string, actor_user_id?: int, from?: string, to?: string}  $filters
      */
-    public function paginateForOrganization(string $organizationId, array $filters, int $perPage): LengthAwarePaginator;
+    public function paginateForOrganization(int $organizationId, array $filters, int $perPage): LengthAwarePaginator;
 }

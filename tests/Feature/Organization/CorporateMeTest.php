@@ -19,14 +19,14 @@ class CorporateMeTest extends TestCase
 
     public function test_it_requires_authentication(): void
     {
-        $this->getJson('/api/v1/corporate/me')->assertUnauthorized();
+        $this->getJson('/api/v1/organization/me')->assertUnauthorized();
     }
 
     public function test_a_user_with_no_organization_has_no_dashboard_access(): void
     {
         $this->actingAsDashboard($this->makeUser());
 
-        $this->getJson('/api/v1/corporate/me')
+        $this->getJson('/api/v1/organization/me')
             ->assertForbidden()
             ->assertExactJson(['message' => 'You do not have access to the Organization Dashboard.']);
     }
@@ -37,7 +37,7 @@ class CorporateMeTest extends TestCase
         $admin = $this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN);
         $account = $this->actingAsDashboard($admin);
 
-        $this->getJson('/api/v1/corporate/me')
+        $this->getJson('/api/v1/organization/me')
             ->assertOk()
             ->assertJsonPath('user.id', $admin->id)
             ->assertJsonPath('user.email', $admin->email)
@@ -61,7 +61,7 @@ class CorporateMeTest extends TestCase
         $organization = Organization::factory()->create();
         $this->actingAsDashboard($this->makeOrgUser($organization, OrganizationRole::ORG_OWNER));
 
-        $response = $this->getJson('/api/v1/corporate/me')->assertOk();
+        $response = $this->getJson('/api/v1/organization/me')->assertOk();
 
         $response->assertJsonMissingPath('user.password');
         $response->assertJsonMissingPath('dashboard_account.password');
@@ -73,7 +73,7 @@ class CorporateMeTest extends TestCase
         $organization = Organization::factory()->create();
         $this->actingAsDashboard($this->makeOrgUser($organization, OrganizationRole::ORG_OWNER));
 
-        $id = $this->getJson('/api/v1/corporate/me')->json('organizations.0.organization.id');
+        $id = $this->getJson('/api/v1/organization/me')->json('organizations.0.organization.id');
 
         $this->getJson("/api/v1/organizations/{$id}")->assertOk();
     }
@@ -87,7 +87,7 @@ class CorporateMeTest extends TestCase
         $this->grantRole($user, $second, OrganizationRole::ORG_ANALYST);
         $this->actingAsDashboard($user);
 
-        $this->getJson('/api/v1/corporate/me')
+        $this->getJson('/api/v1/organization/me')
             ->assertOk()
             ->assertJsonCount(2, 'organizations')
             ->assertJsonPath('organizations.0.organization.id', $first->id)
@@ -104,7 +104,7 @@ class CorporateMeTest extends TestCase
         $this->grantRole($user, $authorized, OrganizationRole::ORG_OWNER);
         $this->actingAsDashboard($user);
 
-        $this->getJson('/api/v1/corporate/me')
+        $this->getJson('/api/v1/organization/me')
             ->assertOk()
             ->assertJsonCount(1, 'organizations')
             ->assertJsonPath('organizations.0.organization.id', $authorized->id)
@@ -117,7 +117,7 @@ class CorporateMeTest extends TestCase
         $organization = Organization::factory()->create();
         $this->actingAsDashboard($this->makeOrgUser($organization, OrganizationRole::ORG_MEMBER));
 
-        $this->getJson('/api/v1/corporate/me')->assertForbidden();
+        $this->getJson('/api/v1/organization/me')->assertForbidden();
         $this->getJson("/api/v1/organizations/{$organization->id}")->assertForbidden();
     }
 
@@ -128,7 +128,7 @@ class CorporateMeTest extends TestCase
         $this->grantRole($owner, $organization, OrganizationRole::ORG_OWNER);
         $this->actingAsDashboard($owner);
 
-        $this->getJson('/api/v1/corporate/me')
+        $this->getJson('/api/v1/organization/me')
             ->assertOk()
             ->assertJsonPath('organizations.0.membership', null)
             ->assertJsonPath('organizations.0.roles', ['ORG_OWNER'])
@@ -145,7 +145,7 @@ class CorporateMeTest extends TestCase
         OrganizationMembership::where('user_id', $admin->id)->update(['status' => MembershipStatus::SUSPENDED]);
         $this->actingAsDashboard($admin);
 
-        $this->getJson('/api/v1/corporate/me')->assertForbidden();
+        $this->getJson('/api/v1/organization/me')->assertForbidden();
         $this->getJson("/api/v1/organizations/{$organization->id}")->assertForbidden();
     }
 
@@ -170,7 +170,7 @@ class CorporateMeTest extends TestCase
 
         $this->actingAsDashboard($user);
 
-        $this->getJson('/api/v1/corporate/me')->assertForbidden();
+        $this->getJson('/api/v1/organization/me')->assertForbidden();
     }
 
     public function test_it_shows_only_a_summary_of_the_users_own_organization(): void
@@ -181,7 +181,7 @@ class CorporateMeTest extends TestCase
         $this->makeOrgUser($other, OrganizationRole::ORG_OWNER);
         $this->actingAsDashboard($this->makeOrgUser($mine, OrganizationRole::ORG_ANALYST));
 
-        $response = $this->getJson('/api/v1/corporate/me')
+        $response = $this->getJson('/api/v1/organization/me')
             ->assertOk()
             ->assertJsonCount(1, 'organizations')
             ->assertJsonPath('organizations.0.organization.id', $mine->id);
@@ -199,7 +199,7 @@ class CorporateMeTest extends TestCase
         $this->grantRole($user, $organization, OrganizationRole::ORG_OWNER);
         $this->actingAsDashboard($user);
 
-        $this->getJson('/api/v1/corporate/me')
+        $this->getJson('/api/v1/organization/me')
             ->assertOk()
             ->assertJsonPath('organizations.0.roles', ['ORG_OWNER', 'ORG_ANALYST']);
     }
@@ -209,7 +209,7 @@ class CorporateMeTest extends TestCase
         Organization::factory()->count(2)->create();
         $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPPORT));
 
-        $this->getJson('/api/v1/corporate/me')
+        $this->getJson('/api/v1/organization/me')
             ->assertOk()
             ->assertJsonPath('pivot_role', 'PIVOT_SUPPORT')
             ->assertJsonPath('pivot_permissions', $this->values(PivotRole::PIVOT_SUPPORT->permissions()))

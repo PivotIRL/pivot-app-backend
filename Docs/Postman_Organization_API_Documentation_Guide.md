@@ -86,7 +86,7 @@ Success (200):
   "organizations": [
     {
       "organization": {
-        "id": "01a1b518-3f45-7302-8394-ed4f9d6bd3a7",
+        "id": 12,
         "name": "Acme Corporation",
         "slug": "acme-corporation",
         "status": "active",
@@ -95,7 +95,7 @@ Success (200):
       },
       "membership": {
         "id": 1,
-        "organization_id": "01a1b518-3f45-7302-8394-ed4f9d6bd3a7",
+        "organization_id": 12,
         "status": "active",
         "joined_via": "work_email",
         "joined_at": "2026-11-07T08:20:27.000000Z",
@@ -111,7 +111,7 @@ Success (200):
   "memberships": [
     {
       "id": 1,
-      "organization_id": "01a1b518-3f45-7302-8394-ed4f9d6bd3a7",
+      "organization_id": 12,
       "status": "active",
       "joined_via": "work_email",
       "joined_at": "2026-11-07T08:20:27.000000Z",

@@ -98,7 +98,7 @@ class OrganizationDashboardProvisioningTest extends TestCase
         Mail::assertNothingSent();
 
         Sanctum::actingAs($invitee);
-        $this->postJson('/api/v1/corporate/invitations/accept', ['token' => $token])->assertCreated();
+        $this->postJson('/api/v1/organization/invitations/accept', ['token' => $token])->assertCreated();
 
         $this->assertDatabaseHas('organization_dashboard_accounts', ['user_id' => $invitee->id]);
         Mail::assertSent(OrganizationDashboardPasswordMail::class, fn ($mail) => $mail->hasTo(strtolower($invitee->email)));
@@ -115,7 +115,7 @@ class OrganizationDashboardProvisioningTest extends TestCase
             ->json('one_time_token');
 
         Sanctum::actingAs($invitee);
-        $this->postJson('/api/v1/corporate/invitations/accept', ['token' => $token])->assertCreated();
+        $this->postJson('/api/v1/organization/invitations/accept', ['token' => $token])->assertCreated();
 
         $this->assertDatabaseMissing('organization_dashboard_accounts', ['user_id' => $invitee->id]);
         Mail::assertNothingSent();

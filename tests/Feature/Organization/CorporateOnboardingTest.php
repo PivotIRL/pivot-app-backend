@@ -380,21 +380,21 @@ class CorporateOnboardingTest extends TestCase
     {
         Sanctum::actingAs($user);
 
-        return $this->postJson('/api/v1/corporate/join/work-email');
+        return $this->postJson('/api/v1/organization/join/work-email');
     }
 
     private function redeem(User $user, string $code): TestResponse
     {
         Sanctum::actingAs($user);
 
-        return $this->postJson('/api/v1/corporate/join/code', ['code' => $code]);
+        return $this->postJson('/api/v1/organization/join/code', ['code' => $code]);
     }
 
     private function accept(User $user, string $token): TestResponse
     {
         Sanctum::actingAs($user);
 
-        return $this->postJson('/api/v1/corporate/invitations/accept', ['token' => $token]);
+        return $this->postJson('/api/v1/organization/invitations/accept', ['token' => $token]);
     }
 
     private function url(Organization $organization, string $path): string

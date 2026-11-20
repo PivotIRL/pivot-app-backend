@@ -90,10 +90,10 @@ class MembershipLifecycleTest extends TestCase
         ]);
 
         Sanctum::actingAs($deactivated);
-        $this->postJson('/api/v1/corporate/join/work-email')->assertForbidden()->assertJsonPath('join_status', 'MEMBERSHIP_DEACTIVATED');
+        $this->postJson('/api/v1/organization/join/work-email')->assertForbidden()->assertJsonPath('join_status', 'MEMBERSHIP_DEACTIVATED');
 
         Sanctum::actingAs($suspended);
-        $this->postJson('/api/v1/corporate/join/work-email')->assertForbidden()->assertJsonPath('join_status', 'MEMBERSHIP_SUSPENDED');
+        $this->postJson('/api/v1/organization/join/work-email')->assertForbidden()->assertJsonPath('join_status', 'MEMBERSHIP_SUSPENDED');
     }
 
     public function test_suspended_admin_loses_delegated_rights_until_restored(): void

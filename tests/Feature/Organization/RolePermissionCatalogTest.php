@@ -17,7 +17,11 @@ class RolePermissionCatalogTest extends TestCase
 {
     use BuildsOrganizationActors, RefreshDatabase;
 
+<<<<<<< HEAD
     private const ENDPOINTS = ['/api/v1/corporate/roles', '/api/v1/corporate/permissions'];
+=======
+    private const ENDPOINTS = ['/api/v1/organization/roles', '/api/v1/organization/permissions'];
+>>>>>>> origin/corporate-backend
 
     // Authentication
 
@@ -93,7 +97,11 @@ class RolePermissionCatalogTest extends TestCase
     {
         $this->actingAsOrgUser(OrganizationRole::ORG_ADMIN);
 
+<<<<<<< HEAD
         $response = $this->getJson('/api/v1/corporate/roles')
+=======
+        $response = $this->getJson('/api/v1/organization/roles')
+>>>>>>> origin/corporate-backend
             ->assertOk()
             ->assertJsonCount(count(OrganizationRole::cases()), 'data')
             ->assertJsonStructure(['data' => [[
@@ -108,7 +116,11 @@ class RolePermissionCatalogTest extends TestCase
     {
         $this->actingAsOrgUser(OrganizationRole::ORG_OWNER);
 
+<<<<<<< HEAD
         $roles = collect($this->getJson('/api/v1/corporate/roles')->assertOk()->json('data'))->keyBy('code');
+=======
+        $roles = collect($this->getJson('/api/v1/organization/roles')->assertOk()->json('data'))->keyBy('code');
+>>>>>>> origin/corporate-backend
 
         foreach (OrganizationRole::cases() as $role) {
             $this->assertSame([
@@ -131,7 +143,11 @@ class RolePermissionCatalogTest extends TestCase
     {
         $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
+<<<<<<< HEAD
         $codes = $this->getJson('/api/v1/corporate/roles')->assertOk()->json('data.*.code');
+=======
+        $codes = $this->getJson('/api/v1/organization/roles')->assertOk()->json('data.*.code');
+>>>>>>> origin/corporate-backend
 
         foreach (PivotRole::cases() as $pivotRole) {
             $this->assertNotContains($pivotRole->value, $codes);
@@ -143,7 +159,11 @@ class RolePermissionCatalogTest extends TestCase
     {
         $this->actAs($orgRole, $pivotRole);
 
+<<<<<<< HEAD
         $this->getJson('/api/v1/corporate/roles')
+=======
+        $this->getJson('/api/v1/organization/roles')
+>>>>>>> origin/corporate-backend
             ->assertOk()
             ->assertJsonPath('data.*.code', ['ORG_OWNER', 'ORG_ADMIN', 'ORG_ANALYST', 'ORG_MEMBER']);
     }
@@ -154,7 +174,11 @@ class RolePermissionCatalogTest extends TestCase
     {
         $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
+<<<<<<< HEAD
         $response = $this->getJson('/api/v1/corporate/permissions')
+=======
+        $response = $this->getJson('/api/v1/organization/permissions')
+>>>>>>> origin/corporate-backend
             ->assertOk()
             ->assertJsonCount(count(OrganizationPermission::cases()), 'data')
             ->assertJsonStructure([
@@ -170,7 +194,11 @@ class RolePermissionCatalogTest extends TestCase
     {
         $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPPORT));
 
+<<<<<<< HEAD
         $this->getJson('/api/v1/corporate/permissions')
+=======
+        $this->getJson('/api/v1/organization/permissions')
+>>>>>>> origin/corporate-backend
             ->assertOk()
             ->assertJsonPath('data.*.key', $this->values(OrganizationPermission::cases()));
     }
@@ -180,7 +208,11 @@ class RolePermissionCatalogTest extends TestCase
     {
         $this->actingAsOrgUser($role);
 
+<<<<<<< HEAD
         $response = $this->getJson('/api/v1/corporate/permissions')->assertOk();
+=======
+        $response = $this->getJson('/api/v1/organization/permissions')->assertOk();
+>>>>>>> origin/corporate-backend
 
         $this->assertSame($this->values(OrganizationPermission::delegated()), $response->json('data.*.key'));
         $this->assertSame(['organization'], array_values(array_unique($response->json('data.*.scope'))));
@@ -198,7 +230,11 @@ class RolePermissionCatalogTest extends TestCase
     {
         $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
+<<<<<<< HEAD
         $permissions = collect($this->getJson('/api/v1/corporate/permissions')->json('data'))->keyBy('key');
+=======
+        $permissions = collect($this->getJson('/api/v1/organization/permissions')->json('data'))->keyBy('key');
+>>>>>>> origin/corporate-backend
 
         foreach (OrganizationPermission::cases() as $permission) {
             $this->assertSame([
@@ -223,7 +259,11 @@ class RolePermissionCatalogTest extends TestCase
     {
         $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
 
+<<<<<<< HEAD
         $response = $this->getJson('/api/v1/corporate/permissions')->assertOk();
+=======
+        $response = $this->getJson('/api/v1/organization/permissions')->assertOk();
+>>>>>>> origin/corporate-backend
 
         $this->assertSame(
             array_map(fn (OrganizationPermissionGroup $group) => $group->value, OrganizationPermissionGroup::cases()),
@@ -265,9 +305,15 @@ class RolePermissionCatalogTest extends TestCase
     {
         $this->actingAsOrgUser(OrganizationRole::ORG_OWNER);
 
+<<<<<<< HEAD
         $catalog = $this->getJson('/api/v1/corporate/permissions')->json('data.*.key');
 
         foreach ($this->getJson('/api/v1/corporate/roles')->json('data') as $role) {
+=======
+        $catalog = $this->getJson('/api/v1/organization/permissions')->json('data.*.key');
+
+        foreach ($this->getJson('/api/v1/organization/roles')->json('data') as $role) {
+>>>>>>> origin/corporate-backend
             foreach ($role['permissions'] as $key) {
                 $this->assertContains($key, $catalog);
             }
@@ -278,7 +324,11 @@ class RolePermissionCatalogTest extends TestCase
     {
         $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPPORT));
 
+<<<<<<< HEAD
         $this->getJson('/api/v1/corporate/me')
+=======
+        $this->getJson('/api/v1/organization/me')
+>>>>>>> origin/corporate-backend
             ->assertOk()
             ->assertJsonPath('pivot_permissions', $this->values(PivotRole::PIVOT_SUPPORT->permissions()));
     }

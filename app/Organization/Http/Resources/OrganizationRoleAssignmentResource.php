@@ -14,7 +14,7 @@ class OrganizationRoleAssignmentResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'organization_id' => $this->organization_id,
+            'organization_id' => $this->organization_id === null ? null : (int) $this->organization_id,
             'role' => $this->role->value,
             'user' => $this->whenLoaded('user', fn () => [
                 'id' => $this->user->id,

@@ -157,11 +157,11 @@ class OrganizationMessagesTest extends TestCase
 
         Sanctum::actingAs($this->makeUser());
 
-        $this->postJson('/api/v1/corporate/join/code', [])
+        $this->postJson('/api/v1/organization/join/code', [])
             ->assertUnprocessable()
             ->assertJsonPath('errors.code.0', 'A redemption code is required.');
 
-        $this->postJson('/api/v1/corporate/invitations/accept', [])
+        $this->postJson('/api/v1/organization/invitations/accept', [])
             ->assertUnprocessable()
             ->assertJsonPath('errors.token.0', 'An invitation token is required.');
 

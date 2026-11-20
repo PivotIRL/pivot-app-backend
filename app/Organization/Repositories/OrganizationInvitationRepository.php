@@ -24,7 +24,7 @@ class OrganizationInvitationRepository implements OrganizationInvitationReposito
         return $organization->invitations()->create($data);
     }
 
-    public function findPending(string $organizationId, string $email): ?OrganizationInvitation
+    public function findPending(int $organizationId, string $email): ?OrganizationInvitation
     {
         return OrganizationInvitation::query()
             ->where('organization_id', $organizationId)

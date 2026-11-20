@@ -68,7 +68,7 @@ class EnsureOrganizationTenant
     {
         $requested = $request->input('organization_id');
 
-        if ($requested !== null && (string) $requested !== $organization->getKey()) {
+        if ($requested !== null && (string) $requested !== (string) $organization->getKey()) {
             throw new AccessDeniedHttpException('Cross-organization requests are not allowed.');
         }
     }
