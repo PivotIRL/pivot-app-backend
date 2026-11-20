@@ -65,7 +65,10 @@ class UserController extends Controller
             'groupChallengeParticipants.session.challenge',
         ])->findOrFail($id);
 
-        return view('admin.users.show', compact('user'));
+        $membership = app(\App\Services\Membership\MembershipAccessService::class)->snapshot($user);
+        $membershipEnvironment = app(\App\Services\Membership\MembershipEnvironment::class)->forUser($user);
+
+        return view('admin.users.show', compact('user', 'membership', 'membershipEnvironment'));
     }
 
     public function update(UserRequest $request, $id)

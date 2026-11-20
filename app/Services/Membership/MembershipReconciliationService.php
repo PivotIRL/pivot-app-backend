@@ -20,7 +20,20 @@ class MembershipReconciliationService
 
     public function reconcile(User|Users $user): void
     {
-        $environment = strtolower((string) config('membership.store_environment', 'production'));
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            try {
+                $this->reconcileOnce($user);
+                return;
+            } catch (MembershipReconciliationConflict $conflict) {
+                if ($attempt === 2) throw $conflict;
+                // Fetch again outside the transaction; never apply the stale store result.
+            }
+        }
+    }
+
+    private function reconcileOnce(User|Users $user): void
+    {
+        $environment = app(MembershipEnvironment::class)->forUser($user);
         $customerId = (string) ($user->revenuecat_user_id ?: $user->id);
         $subscriptionUpdatedAt = DB::table('subscriptions')->where('user_id', $user->id)->value('updated_at');
         $accessUpdatedAt = DB::table('account_access')->where('user_id', $user->id)->value('updated_at');
@@ -40,7 +53,7 @@ class MembershipReconciliationService
             $currentSubscriptionUpdatedAt = DB::table('subscriptions')->where('user_id', $user->id)->value('updated_at');
             $currentAccessUpdatedAt = DB::table('account_access')->where('user_id', $user->id)->value('updated_at');
             if ($currentSubscriptionUpdatedAt !== $subscriptionUpdatedAt || $currentAccessUpdatedAt !== $accessUpdatedAt) {
-                throw new RuntimeException('Membership changed during reconciliation. Retry to verify the latest purchase state.');
+                throw new MembershipReconciliationConflict('Membership changed during reconciliation. Retry to verify the latest purchase state.');
             }
             $this->applyState($user, $state, $environment);
             // Do not release a trial while an unrecognized subscription still needs mapping.
@@ -96,7 +109,7 @@ class MembershipReconciliationService
 
         // This was a successful, complete RevenueCat read. Retire store access when no current
         // verified entitlement remains; do not alter legacy or account-trial access here.
-        if ($access?->access_source === 'store') {
+        if (in_array($access?->access_source, ['store', 'promotional'], true)) {
             DB::table('account_access')->where('user_id', $user->id)->update([
                 'effective_package' => null,
                 'access_status' => 'expired',
@@ -253,7 +266,7 @@ class MembershipReconciliationService
         if (! $lifetime && (! $end || ! $end->isFuture())) return null;
         return [
             'selected_package' => $package, 'effective_package' => $package,
-            'payment_path' => $lifetime ? 'lifetime' : null, 'status' => 'active', 'source' => 'store',
+            'payment_path' => $lifetime ? 'lifetime' : null, 'status' => 'active', 'source' => 'promotional',
             'product_id' => $item['store_product_id'] ?? $item['product_id'] ?? null,
             'trial_ends_at' => null, 'access_ends_at' => $end,
             'rank' => $package === 'premium' ? 2 : 1, 'expires_at' => $end,
@@ -269,7 +282,7 @@ class MembershipReconciliationService
             if (($entitlement['state'] ?? null) !== 'active') continue;
             $lookup = strtolower((string) ($entitlement['lookup_key'] ?? ''));
             if (in_array($lookup, ['premium', 'premium_android', 'premium android', 'tier3', 'tier_3', 'tier3_android', 'tier_3_android'], true)) return 'premium';
-            if (in_array($lookup, ['standard', 'standard_andriod', 'tier2', 'tier_2', 'tier2_android', 'tier_2_android'], true)) $package = 'standard';
+            if (in_array($lookup, ['standard', 'standard_android', 'standard android', 'standard_andriod', 'tier2', 'tier_2', 'tier2_android', 'tier_2_android'], true)) $package = 'standard';
         }
         return $package;
     }
@@ -391,6 +404,7 @@ class MembershipReconciliationService
         DB::table('account_access')->updateOrInsert(['user_id' => $user->id], [
             'selected_package' => $candidate['selected_package'], 'effective_package' => $candidate['effective_package'],
             'payment_path' => $candidate['payment_path'], 'access_status' => $candidate['status'],
+            'store_environment' => app(MembershipEnvironment::class)->forUser($user),
             'access_source' => $candidate['source'], 'product_id' => $candidate['product_id'],
             'trial_ends_at' => $candidate['trial_ends_at'], 'access_ends_at' => $candidate['access_ends_at'],
             'updated_at' => now(), 'created_at' => now(),

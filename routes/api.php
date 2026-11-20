@@ -76,6 +76,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/access/announcements/acknowledge', [MembershipController::class, 'acknowledge']);
         Route::post('/access/reconcile', [MembershipController::class, 'reconcile']);
         Route::post('/membership/purchase-checkouts', [MembershipController::class, 'purchaseCheckout']);
+        Route::post('/membership/lifetime-renewal', [\App\Http\Controllers\Api\V1\LifetimeRenewalController::class, 'prepare'])->middleware('throttle:10,1');
+        Route::get('/membership/lifetime-renewal', [\App\Http\Controllers\Api\V1\LifetimeRenewalController::class, 'status']);
         Route::post('/membership/change-checkouts', [MembershipController::class, 'changeCheckout']);
         Route::post('/membership/attempt-status', [MembershipController::class, 'attemptStatus']);
         Route::post('/membership/checkout-recovery', [MembershipController::class, 'recoverCheckout']);
@@ -146,7 +148,7 @@ Route::prefix('v1')->group(function () {
         Route::get('user-activities/all', [ActivityController::class, 'userActivitiesAll']);
         Route::get('search-activities', [ActivityController::class, 'searchActivities']);
         // User Hobby Management Routes
-        Route::apiResource('user/hobbies', UserHobbyController::class);
+        Route::apiResource('user/hobbies', UserHobbyController::class)->names('user.hobbies');
 
         // Research Management Routes
         Route::apiResource('research', ResearchController::class);

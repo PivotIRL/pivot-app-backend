@@ -3,12 +3,14 @@
 @section('title', 'Subscriptions | Pivot Admin')
 
 @section('content')
-<a href="{{ route('admin.membership-plans.index') }}" class="btn btn-primary">Manage membership features</a>
+<div class="rc-page-header">
 <ul class="breadcrumb">
     <li><a href="{{ route('admin.dashboard') }}">Admin</a></li>
     <li><i class="fa-solid fa-chevron-right" style="font-size: 0.65rem;"></i></li>
     <li style="color: var(--text-heading); font-weight: 600;">Subscription Management</li>
 </ul>
+<a href="{{ route('admin.membership-plans.index') }}" class="btn btn-primary">Manage membership features</a>
+</div>
 
 @php
 $overviewMetrics = $overview['metrics'] ?? [];
@@ -26,6 +28,7 @@ $row2 = [
 @endphp
 
 <div class="rc-analytics-container">
+    <p class="rc-data-note">RevenueCat project overview · Revenue in USD. These metrics have a different scope from the customer membership records below.</p>
     <!-- Metric Cards Row 1 -->
     <div class="rc-metric-grid grid-3">
         @foreach($row1 as $card)
@@ -65,6 +68,7 @@ $row2 = [
     <!-- Customers Section -->
     <div class="rc-customers-section">
         <h2 class="rc-section-title">Customers</h2>
+        <p class="rc-data-note">Latest backend-verified membership · Dates in UTC · Sandbox purchases are test purchases. Revenue is shown only when available for the matching purchase.</p>
 
         <form method="GET" action="{{ route('admin.subscriptions.index') }}" class="rc-search-form">
             <input
@@ -84,8 +88,8 @@ $row2 = [
                 <thead>
                     <tr>
                         <th>Name</th>
-                        <th>Tier</th>
-                        <th>Revenue</th>
+                        <th>Membership</th>
+                        <th>Revenue (USD)</th>
                         <th>Status</th>
                         <th>Store</th>
                         <th>Subscription Dates</th>
@@ -106,20 +110,24 @@ $row2 = [
                             @php
                             $tierVal = $customer['tier'] ?? 'N/A';
                             $tierStyle = match(strtolower($tierVal)) {
-                            'tier 2', 'tier2' => 'background:#ede9fe; color:#6d28d9;',
-                            'tier 3', 'tier3' => 'background:#fef3c7; color:#b45309;',
+                            'standard monthly', 'standard annual', 'standard lifetime' => 'background:#ede9fe; color:#6d28d9;',
+                            'premium monthly', 'premium annual', 'premium lifetime' => 'background:#fef3c7; color:#b45309;',
                             default => 'background:#f1f5f9; color:#475569;',
                             };
                             @endphp
                             <span class="badge" style="{{ $tierStyle }} font-weight: 700;">{{ $tierVal }}</span>
+                            <div class="rc-customer-email">{{ $customer['environment'] }} · {{ $customer['source'] }}</div>
                         </td>
                         <td>
-                            <span style="font-weight: 600; color: var(--rc-text-primary);">${{ number_format((float)($customer['gross_revenue'] ?? 0), 2) }}</span>
+                            <span style="font-weight: 600; color: var(--rc-text-primary);">{{ is_numeric($customer['gross_revenue']) ? '$'.number_format((float)$customer['gross_revenue'], 2) : 'N/A' }}</span>
                         </td>
                         <td>
                             <span class="badge {{ strtolower($customer['status'] ?? '') === 'active' ? 'badge-success' : 'badge-warning' }}">
                                 {{ $customer['status'] ?? 'Expired' }}
                             </span>
+                            @if($customer['auto_renewal_status'])
+                            <div class="rc-customer-email">Renewal: {{ ucfirst(str_replace('_', ' ', $customer['auto_renewal_status'])) }}</div>
+                            @endif
                         </td>
                         <td>
                             @if(($customer['store'] ?? 'N/A') !== 'N/A')
@@ -129,7 +137,7 @@ $row2 = [
                             @endif
                         </td>
                         <td>
-                            <div>Starts: {{ $customer['subscription_starts_at'] ?? 'N/A' }}</div>
+                            <div>Period start: {{ $customer['subscription_starts_at'] ?? 'N/A' }}</div>
                             <div>Ends: {{ $customer['subscription_ends_at'] ?? 'N/A' }}</div>
                         </td>
                     </tr>
@@ -171,6 +179,14 @@ $row2 = [
 </div>
 
 <style>
+    .rc-page-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+    .rc-page-header .breadcrumb { margin: 0; }
+    .rc-page-header .btn { flex-shrink: 0; text-align: center; }
+    .rc-data-note { margin: 0 0 1rem; color: var(--text-secondary, #64748b); font-size: 0.85rem; }
+    @media (max-width: 600px) {
+        .rc-page-header { align-items: flex-start; flex-direction: column; }
+        .rc-page-header .btn { width: 100%; box-sizing: border-box; }
+    }
     /* Design Tokens / Root Variables */
     :root {
         --rc-bg-card: #ffffff;

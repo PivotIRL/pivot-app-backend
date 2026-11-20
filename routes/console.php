@@ -40,3 +40,14 @@ Schedule::command('notifications:send-global')->everyMinute()->withoutOverlappin
 Schedule::job(new ExpireOrganizationContracts)->daily();
 Schedule::job(new ActivateOrganizationContracts)->daily();
 Schedule::job(new ReconcileOrganizationSeats)->daily();
+
+Artisan::command('membership:cancel-lifetime-renewals', function () {
+    \Illuminate\Support\Facades\DB::table('lifetime_renewal_cancellations as c')
+        ->join('membership_attempts as a', function ($join) {
+            $join->on('c.checkout_key', '=', 'a.idempotency_key')->on('c.user_id', '=', 'a.user_id');
+        })->where('a.operation', 'change')->where('a.status', 'completed')->where('c.status', '!=', 'completed')
+        ->where(fn ($q) => $q->whereNull('c.next_attempt_at')->orWhere('c.next_attempt_at', '<=', now()))
+        ->select('c.id')->distinct()->orderBy('c.id')->limit(100)->get()
+        ->each(fn ($row) => \App\Jobs\StopRenewalAfterLifetime::dispatch($row->id));
+})->purpose('Retry renewal cancellation only after verified Lifetime checkout completion');
+Schedule::command('membership:cancel-lifetime-renewals')->everyMinute()->withoutOverlapping();

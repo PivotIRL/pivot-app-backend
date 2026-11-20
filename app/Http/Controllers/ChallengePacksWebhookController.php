@@ -39,10 +39,6 @@ class ChallengePacksWebhookController extends Controller
             return response()->json(['message' => 'Challenge pack event ignored.'], 200);
         }
 
-        if (strtolower((string) ($event['environment'] ?? 'production')) !== strtolower((string) config('membership.store_environment', 'production'))) {
-            return response()->json(['message' => 'Challenge pack environment is isolated from this backend.'], 200);
-        }
-
         $allowedProducts = [
             '1_challenge_pack',
             '3_challenge_pack',
@@ -60,6 +56,11 @@ class ChallengePacksWebhookController extends Controller
 
         $user = $this->resolveUser($event);
         if (! $user) return response()->json(['message' => 'Unable to resolve the RevenueCat user.'], 422);
+
+        if (strtolower((string) ($event['environment'] ?? 'production')) !== app(\App\Services\Membership\MembershipEnvironment::class)->forUser($user)) {
+            return response()->json(['message' => 'Challenge pack environment is isolated from this backend.'], 200);
+        }
+
 
         $created = DB::transaction(function () use ($event, $user, $total) {
             DB::table('users')->where('id', $user->id)->lockForUpdate()->first();

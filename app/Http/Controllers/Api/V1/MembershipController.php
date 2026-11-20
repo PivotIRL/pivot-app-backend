@@ -190,7 +190,7 @@ class MembershipController extends Controller
                 abort(409, 'A verified purchase already exists. Refresh or restore your membership.');
             }
             $storePurchase = DB::table('verified_purchases')->where('user_id', $user->id)
-                ->where('environment', config('membership.store_environment', 'production'))->whereNull('revoked_at')
+                ->where('environment', app(\App\Services\Membership\MembershipEnvironment::class)->forUser($user))->whereNull('revoked_at')
                 ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))->exists();
             if ($storePurchase) abort(409, 'A current store purchase needs reconciliation before cancelling checkout.');
             app(MembershipTrialReservation::class)->cancelUnpaidAfterVerification($user->id);
@@ -226,9 +226,11 @@ class MembershipController extends Controller
         $scheduled = DB::table('membership_attempts')->where('user_id', $request->user()->id)->where('operation', 'change')->where('status', 'scheduled')->exists();
         if ($scheduled) return response()->json(['message' => 'A scheduled store change must take effect before another change can be quoted.'], 409);
         $recurringCount = DB::table('verified_purchases')->where('user_id', $request->user()->id)
-            ->where('environment', config('membership.store_environment', 'production'))
+            ->where('environment', app(\App\Services\Membership\MembershipEnvironment::class)->forUser($request->user()))
             ->whereIn('payment_path', ['monthly', 'annual'])->whereNull('revoked_at')
-            ->where(function ($query) { $query->whereNull('expires_at')->orWhere('expires_at', '>', now()); })->count();
+            ->where(function ($query) { $query->whereNull('expires_at')->orWhere('expires_at', '>', now()); })
+            ->get()->unique(fn ($receipt) => implode('|', [$receipt->store, $receipt->product_id, $receipt->base_plan_id,
+                strtolower((string) $receipt->store) === 'play_store' ? explode('..', $receipt->transaction_id)[0] : $receipt->transaction_id]))->count();
         if ($recurringCount > 1) return response()->json(['message' => 'Multiple active recurring purchases require reconciliation before a change.'], 409);
         $snapshot = $this->access->snapshot($request->user());
         if (! in_array($snapshot['access_status'], ['active', 'trial'], true) || ! $snapshot['product_id']) return response()->json(['message' => 'A verified current purchase is required to quote a change.'], 409);
@@ -240,7 +242,7 @@ class MembershipController extends Controller
         if (! $sourceChoice) return response()->json(['message' => 'The current store product could not be mapped. Reconcile access and retry.'], 409);
         $sourcePlan = $sourceChoice['base_plan_id'];
         $sourcePurchase = DB::table('verified_purchases')->where('user_id', $request->user()->id)
-            ->where('environment', config('membership.store_environment', 'production'))
+            ->where('environment', app(\App\Services\Membership\MembershipEnvironment::class)->forUser($request->user()))
             ->where('product_id', $sourceProduct)
             ->where('payment_path', $snapshot['payment_path'])
             ->when($sourcePlan, fn ($query) => $query->where('base_plan_id', $sourcePlan))
@@ -252,21 +254,27 @@ class MembershipController extends Controller
         $currentPath = $snapshot['payment_path'];
         $mode = $this->replacementMode($snapshot['selected_package'], $currentPath, $data['selected_package'], $data['payment_path']);
         if (! $mode) return response()->json(['message' => 'This membership transition is not supported.'], 422);
+        $cancelAfterPurchase = false;
+        $renewalStopped = false;
         if ($data['payment_path'] === 'lifetime' && $currentPath !== 'lifetime') {
             $renewalStopped = DB::table('verified_purchases')->where('user_id', $request->user()->id)
-                ->where('environment', config('membership.store_environment', 'production'))
+                ->where('environment', app(\App\Services\Membership\MembershipEnvironment::class)->forUser($request->user()))
                 ->where('product_id', $sourceProduct)->where('renewal_status', 'cancelled')
                 ->whereNull('revoked_at')->exists();
-            if (! $renewalStopped) return response()->json(['message' => 'Verified renewal cancellation is required before a lifetime conversion.'], 409);
+            if (! $renewalStopped) {
+                $cancelAfterPurchase = app(\App\Services\Membership\LifetimeRenewalCancellation::class)->prepared(
+                    $request->user(), $request->header('Idempotency-Key'), $data['selected_package'], $snapshot['product_id']) !== null;
+                if (! $cancelAfterPurchase) return response()->json(['code' => 'renewal_cancellation_required', 'message' => 'Verified renewal cancellation is required before a lifetime conversion.'], 409);
+            }
         }
         if ($currentPath === 'lifetime' && $data['payment_path'] === 'lifetime' && $data['selected_package'] === 'premium') {
             $activeRecurring = DB::table('verified_purchases')->where('user_id', $request->user()->id)
-                ->where('environment', config('membership.store_environment', 'production'))
+                ->where('environment', app(\App\Services\Membership\MembershipEnvironment::class)->forUser($request->user()))
                 ->whereIn('payment_path', ['monthly', 'annual'])->whereNull('revoked_at')
                 ->where(function ($query) { $query->whereNull('expires_at')->orWhere('expires_at', '>', now()); })->exists();
             if ($activeRecurring) return response()->json(['message' => 'An active recurring subscription prevents a lifetime upgrade.'], 409);
         }
-        $quote = ['selected_package' => $data['selected_package'], 'payment_path' => $data['payment_path'], 'old_product_id' => $snapshot['product_id'], 'product_id' => $targetProduct['store_product_id'], 'base_plan_id' => $targetProduct['base_plan_id'], 'replacement_mode' => $mode, 'renewal_stopped' => $currentPath !== 'lifetime' && $data['payment_path'] === 'lifetime'];
+        $quote = ['selected_package' => $data['selected_package'], 'payment_path' => $data['payment_path'], 'old_product_id' => $snapshot['product_id'], 'product_id' => $targetProduct['store_product_id'], 'base_plan_id' => $targetProduct['base_plan_id'], 'replacement_mode' => $mode, 'renewal_stopped' => $renewalStopped, 'cancel_renewal_after_purchase' => $cancelAfterPurchase];
         return $this->createAttempt($request, 'change', $data, $quote);
     }
 

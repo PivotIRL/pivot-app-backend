@@ -57,7 +57,7 @@ class RevenueCatWebhookController extends Controller
             ], 422);
         }
 
-        if (strtolower((string) ($payload['environment'] ?? 'production')) !== strtolower((string) config('membership.store_environment', 'production'))) {
+        if (strtolower((string) ($payload['environment'] ?? 'production')) !== app(\App\Services\Membership\MembershipEnvironment::class)->forUser($user)) {
             return response()->json(['message' => 'Purchase environment is isolated from this backend.'], 200);
         }
 
@@ -92,7 +92,9 @@ class RevenueCatWebhookController extends Controller
             $expiresAt = $this->fromMilliseconds($payload['expiration_at_ms'] ?? null);
             $eventAt = $this->fromMilliseconds($payload['event_timestamp_ms'] ?? null);
 
-            if ($subscription?->revenuecat_event_at && $eventAt && $eventAt->lessThanOrEqualTo($subscription->revenuecat_event_at)) {
+            if ($subscription?->revenuecat_event_at && $eventAt
+                && strtolower((string) $subscription->environment) === strtolower((string) ($payload['environment'] ?? 'production'))
+                && $eventAt->lessThanOrEqualTo($subscription->revenuecat_event_at)) {
                 DB::table('revenuecat_webhook_events')->where('event_id', $eventId)->update(['status' => 'processed', 'processed_at' => now(), 'updated_at' => now()]);
                 return response()->json(['message' => 'Older RevenueCat event ignored.', 'subscription_id' => $subscription->id], 200);
             }
@@ -168,7 +170,7 @@ class RevenueCatWebhookController extends Controller
             'UNCANCELLATION', 'SUBSCRIPTION_EXTENDED', 'SUBSCRIPTION_PAUSED',
         ], true)) return true;
 
-        $configuredEnvironment = strtolower((string) config('membership.store_environment', 'production'));
+        $configuredEnvironment = app(\App\Services\Membership\MembershipEnvironment::class)->forUser($user);
         $environment = strtolower((string) ($payload['environment'] ?? 'production'));
         if ($environment !== $configuredEnvironment) return true;
         $resolvedProduct = $eventType === self::EVENT_PRODUCT_CHANGE ? ($newProductId ?? $productId) : $productId;
@@ -268,6 +270,7 @@ class RevenueCatWebhookController extends Controller
                     'payment_path' => $replacement->payment_path,
                     'access_status' => 'active',
                     'access_source' => 'store',
+                    'store_environment' => $environment,
                     'product_id' => $replacement->payment_path === 'lifetime' ? $replacement->product_id : $replacement->product_id . ':' . $replacement->base_plan_id,
                     'trial_ends_at' => null,
                     'access_ends_at' => $replacement->expires_at,
@@ -316,6 +319,7 @@ class RevenueCatWebhookController extends Controller
             'payment_path' => $path,
             'access_status' => $isTrial && $isActive ? 'trial' : ($isActive ? 'active' : 'expired'),
             'access_source' => 'store',
+            'store_environment' => $environment,
             'product_id' => $choice['product_id'],
             'trial_ends_at' => $isTrial && $isActive ? $expiresAt : null,
             'access_ends_at' => $expiresAt,
@@ -343,10 +347,6 @@ class RevenueCatWebhookController extends Controller
 
     private function reconcileLifecycleEvent(array $payload, MembershipReconciliationService $reconciliation): JsonResponse
     {
-        $environment = strtolower((string) config('membership.store_environment', 'production'));
-        if (isset($payload['environment']) && strtolower($payload['environment']) !== $environment) {
-            return response()->json(['message' => 'Purchase environment is isolated from this backend.']);
-        }
         $users = [];
         if ($payload['type'] === 'TRANSFER') {
             foreach (array_merge($payload['transferred_from'], $payload['transferred_to']) as $id) {
@@ -362,7 +362,11 @@ class RevenueCatWebhookController extends Controller
         // A retry reads current state again; it never replays an old grant or revocation.
         // Reconciliation scopes every read to this backend's store environment.
         try {
-            foreach ($users as $user) $reconciliation->reconcile($user);
+            foreach ($users as $user) {
+                if (app(\App\Services\Membership\MembershipEnvironment::class)->accepts($user, $payload['environment'] ?? null)) {
+                    $reconciliation->reconcile($user);
+                }
+            }
         } catch (\RuntimeException $exception) {
             return response()->json(['message' => 'Membership verification unavailable. Retry this event.'], 503);
         }

@@ -1,10 +1,23 @@
 @extends('layouts.admin')
 
 @section('content')
+@php
+    $fromCategoryId = request()->query('from_category');
+    $fromCategoryId = ctype_digit((string) $fromCategoryId) ? (int) $fromCategoryId : null;
+    $backUrl = $fromCategoryId
+        ? route('admin.categories.show', $fromCategoryId)
+        : route('admin.activities.index');
+@endphp
 <ul class="breadcrumb">
     <li><a href="{{ route('admin.dashboard') }}">Admin</a></li>
     <li><i class="fa-solid fa-chevron-right" style="font-size: 0.65rem;"></i></li>
-    <li><a href="{{ route('admin.activities.index') }}">Activities Management</a></li>
+    @if($fromCategoryId)
+        <li><a href="{{ route('admin.categories.index') }}">Category Management</a></li>
+        <li><i class="fa-solid fa-chevron-right" style="font-size: 0.65rem;"></i></li>
+        <li><a href="{{ $backUrl }}">Category Details</a></li>
+    @else
+        <li><a href="{{ route('admin.activities.index') }}">Activities Management</a></li>
+    @endif
     <li><i class="fa-solid fa-chevron-right" style="font-size: 0.65rem;"></i></li>
     <li style="color: var(--text-heading); font-weight: 600;">Activity Details</li>
 </ul>
@@ -12,7 +25,7 @@
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
     <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-heading);">{{ $activity->activity_title }}</h2>
     <div style="display: flex; gap: 0.75rem;">
-        <a href="{{ route('admin.activities.index') }}" class="btn btn-secondary">
+        <a href="{{ $backUrl }}" class="btn btn-secondary">
             <i class="fa-solid fa-arrow-left"></i> Back to List
         </a>
     </div>
