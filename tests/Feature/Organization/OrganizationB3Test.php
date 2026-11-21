@@ -150,7 +150,7 @@ class OrganizationB3Test extends TestCase
 
     public function test_redemption_code_is_hashed_and_plaintext_is_returned_only_once(): void
     {
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->create(['name' => 'Test Organization']);
         $owner = $this->makeOrgUser($organization, OrganizationRole::ORG_OWNER);
         $this->actingAsDashboard($owner);
 
@@ -166,10 +166,11 @@ class OrganizationB3Test extends TestCase
 
         $plaintext = $response->json('one_time_code');
         $this->assertIsString($plaintext);
-        $this->assertNotEmpty($plaintext);
+        $this->assertMatchesRegularExpression('/^test-[a-z0-9]{6}$/', $plaintext);
 
         $code = OrganizationRedemptionCode::query()->where('organization_id', $organization->id)->firstOrFail();
-        $this->assertSame(hash('sha256', $plaintext), $code->code_hash);
+        $this->assertSame(hash('sha256', strtoupper($plaintext)), $code->code_hash);
+        $this->assertSame('test-', $code->code_prefix);
         $this->assertNotSame($plaintext, $code->code_hash);
 
         $this->getJson($this->organizationUrl($organization, 'redemption-codes'))
