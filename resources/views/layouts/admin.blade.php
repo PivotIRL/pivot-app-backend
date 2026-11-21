@@ -86,7 +86,15 @@ use Illuminate\Support\Facades\Auth;
 
                 <a href="{{ route('admin.announcements.index') }}" class="nav-item {{ request()->routeIs('admin.announcements.*') ? 'active' : '' }}"><i class="fa-solid fa-bell"></i><span>Notifications</span></a>
 <a href="{{ route('admin.app-updates.index') }}" class="nav-item {{ request()->routeIs('admin.app-updates.*') ? 'active' : '' }}"><i class="fa-solid fa-download"></i><span>Required App Updates</span></a>
-<!-- Monetization Section -->
+@can('manage-organizations')
+                <!-- Corporate Section -->
+                <div class="nav-section-title">Corporate</div>
+                <a href="{{ route('admin.organizations.index') }}" class="nav-item {{ request()->routeIs('admin.organizations.*') ? 'active' : '' }}">
+                    <i class="fa-solid fa-building"></i>
+                    <span>Organizations</span>
+                </a>
+                @endcan
+                <!-- Monetization Section -->
                 <div class="nav-section-title">Monetization</div>
                 <a href="{{ route('admin.subscriptions.index') }}" class="nav-item {{ request()->routeIs('admin.subscriptions.*') ? 'active' : '' }}">
                     <i class="fa-solid fa-credit-card"></i>
