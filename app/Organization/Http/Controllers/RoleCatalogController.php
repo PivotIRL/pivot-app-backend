@@ -8,11 +8,7 @@ use App\Organization\Services\RolePermissionCatalogService;
 use Illuminate\Http\JsonResponse;
 
 /**
-<<<<<<< HEAD
- * GET /corporate/roles: the organization roles that exist. Not tenant data, so open to every dashboard user.
-=======
- * GET /organization/roles: the organization roles that exist. Not tenant data, so open to every dashboard user.
->>>>>>> origin/corporate-backend
+ * GET /organization/roles (also /corporate/roles): the organization roles that exist. Not tenant data, so open to every dashboard user.
  * Who holds which role in an organization is GET /organizations/{organization}/roles (needs roles.view).
  */
 class RoleCatalogController extends Controller

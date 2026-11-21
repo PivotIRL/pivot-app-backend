@@ -9,11 +9,7 @@ use App\Organization\Enums\OrganizationRole;
 
 /**
  * The role and permission definitions the Organization Dashboard can show, read straight from the enums.
-<<<<<<< HEAD
- * It describes what exists, not what the user holds: GET /corporate/me answers that.
-=======
  * It describes what exists, not what the user holds: GET /organization/me answers that.
->>>>>>> origin/corporate-backend
  */
 class RolePermissionCatalogService
 {

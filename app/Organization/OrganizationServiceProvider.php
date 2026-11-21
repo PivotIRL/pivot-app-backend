@@ -4,6 +4,7 @@ namespace App\Organization;
 
 use App\Organization\Console\Commands\AssignPivotRoleCommand;
 use App\Organization\Console\Commands\ProvisionDashboardAccountsCommand;
+use App\Organization\Http\Middleware\AuthenticateOrganizationRequest;
 use App\Organization\Http\Middleware\EnsureOrganizationDashboardAccess;
 use App\Organization\Http\Middleware\EnsureOrganizationTenant;
 use App\Organization\Http\Middleware\UseCorporateUserModel;
@@ -123,6 +124,7 @@ class OrganizationServiceProvider extends ServiceProvider
     private function registerRoutes(): void
     {
         $router = $this->app->make(Router::class);
+        $router->aliasMiddleware('organization.auth', AuthenticateOrganizationRequest::class);
         $router->aliasMiddleware('organization.user', UseCorporateUserModel::class);
         $router->aliasMiddleware('organization.tenant', EnsureOrganizationTenant::class);
         $router->aliasMiddleware('organization.dashboard', EnsureOrganizationDashboardAccess::class);

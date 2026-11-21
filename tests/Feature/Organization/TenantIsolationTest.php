@@ -32,8 +32,9 @@ class TenantIsolationTest extends TestCase
         $adminA = $this->makeOrgUser($this->orgA, OrganizationRole::ORG_ADMIN);
         $this->actingAsDashboard($adminA);
 
-        $this->getJson($this->url($this->orgB, 'roles'))->assertForbidden();
-        $this->getJson($this->url($this->orgB, 'audit-logs'))->assertForbidden();
+        // Same response as for an organization that does not exist: other tenants' IDs are not revealed.
+        $this->getJson($this->url($this->orgB, 'roles'))->assertNotFound()->assertExactJson(['message' => 'Organization not found.']);
+        $this->getJson($this->url($this->orgB, 'audit-logs'))->assertNotFound()->assertExactJson(['message' => 'Organization not found.']);
 
         $this->assertDatabaseHas('organization_audit_logs', [
             'action' => AuditAction::TENANT_ACCESS_DENIED->value,
@@ -61,7 +62,7 @@ class TenantIsolationTest extends TestCase
         $this->postJson($this->url($this->orgB, 'roles'), [
             'user_id' => $memberB->id,
             'role' => OrganizationRole::ORG_ANALYST->value,
-        ])->assertForbidden();
+        ])->assertNotFound()->assertExactJson(['message' => 'Organization not found.']);
 
         $this->assertDatabaseMissing('organization_role_assignments', ['user_id' => $memberB->id]);
     }
@@ -152,7 +153,7 @@ class TenantIsolationTest extends TestCase
             ->json('access_token');
 
         $this->withToken($token)->getJson($this->url($this->orgA, 'roles'))->assertOk();
-        $this->withToken($token)->getJson($this->url($this->orgB, 'roles'))->assertForbidden();
+        $this->withToken($token)->getJson($this->url($this->orgB, 'roles'))->assertNotFound()->assertExactJson(['message' => 'Organization not found.']);
     }
 
     public function test_guests_are_rejected(): void
@@ -189,11 +190,12 @@ class TenantIsolationTest extends TestCase
         $this->actingAsDashboard($adminA);
 
         foreach (['members', 'domains', 'redemption-codes', 'invitations', 'roles', 'audit-logs'] as $path) {
-            $this->getJson("/api/v1/organizations/{$this->orgB->id}/{$path}")->assertForbidden();
-            $this->getJson('/api/v1/organizations/'.($this->orgB->id + 1000)."/{$path}")->assertNotFound();
+            // An existing organization of another tenant and a non-existent ID get the identical response.
+            $this->getJson("/api/v1/organizations/{$this->orgB->id}/{$path}")->assertNotFound()->assertExactJson(['message' => 'Organization not found.']);
+            $this->getJson('/api/v1/organizations/'.($this->orgB->id + 1000)."/{$path}")->assertNotFound()->assertExactJson(['message' => 'Organization not found.']);
         }
 
-        $this->getJson("/api/v1/organizations/{$this->orgB->id}")->assertForbidden();
+        $this->getJson("/api/v1/organizations/{$this->orgB->id}")->assertNotFound()->assertExactJson(['message' => 'Organization not found.']);
     }
 
     public function test_cross_organization_id_in_body_is_rejected(): void

@@ -25,7 +25,13 @@ use Illuminate\Support\Facades\Route;
 |
 | Every {organization} route passes tenant isolation (organization.tenant) and then a policy check in the controller.
 | scopeBindings() makes child models (e.g. {roleAssignment}) resolve only inside {organization}.
+|
+| organization.auth is the shared Authenticate middleware, ordered before route model binding so a missing or
+| invalid token returns 401 before any ID is looked up. IDs are limited to bigint-sized numbers, so malformed
+| IDs never reach the database.
 */
+
+$id = '[0-9]{1,19}';
 
 // Dashboard authentication: public endpoints, rate limited.
 Route::prefix('organization/auth')
@@ -37,7 +43,7 @@ Route::prefix('organization/auth')
         Route::post('reset-password', 'resetPassword')->middleware('throttle:organization-dashboard-reset-password')->name('reset-password');
     });
 
-Route::middleware(['auth:organization-dashboard', 'organization.dashboard'])->group(function () {
+Route::middleware(['organization.auth:organization-dashboard', 'organization.dashboard'])->group(function () use ($id) {
     Route::post('organization/auth/logout', [OrganizationDashboardAuthController::class, 'logout'])->name('organization.auth.logout');
 
     // The signed-in dashboard user's own organizations, roles and permissions.
@@ -53,7 +59,14 @@ Route::middleware(['auth:organization-dashboard', 'organization.dashboard'])->gr
 
     Route::middleware('organization.tenant')
         ->prefix('organizations/{organization}')
-        ->whereNumber('organization')
+        ->where([
+            'organization' => $id,
+            'domain' => $id,
+            'redemptionCode' => $id,
+            'membership' => $id,
+            'invitation' => $id,
+            'roleAssignment' => $id,
+        ])
         ->scopeBindings()
         ->name('organizations.')
         ->group(function () {
@@ -98,16 +111,23 @@ Route::middleware(['auth:organization-dashboard', 'organization.dashboard'])->gr
     // 2. Pivot staff administration across organizations; action-level policies enforce the global role permissions.
     Route::prefix('organizations')
         ->name('organizations.')
-        ->group(function () {
+        ->group(function () use ($id) {
             Route::get('/', [OrganizationController::class, 'index'])->name('index');
             Route::post('/', [OrganizationController::class, 'store'])->name('store');
-            Route::put('{organization}', [OrganizationController::class, 'update'])->whereNumber('organization')->name('update');
-            Route::post('{organization}/contracts/renew', [OrganizationController::class, 'renew'])->whereNumber('organization')->name('contracts.renew');
+            // Visibility only: users with no link to the organization get 404, the policy decides the rest.
+            Route::put('{organization}', [OrganizationController::class, 'update'])
+                ->where('organization', $id)
+                ->middleware('organization.tenant:visibility')
+                ->name('update');
+            Route::post('{organization}/contracts/renew', [OrganizationController::class, 'renew'])
+                ->where('organization', $id)
+                ->middleware('organization.tenant:visibility')
+                ->name('contracts.renew');
         });
 });
 
 // 3. Mobile App employee onboarding (B4): any signed-in user joins with their own existing account, never a new one.
-Route::middleware(['auth:sanctum', 'organization.user'])
+Route::middleware(['organization.auth:sanctum', 'organization.user'])
     ->prefix('organization')
     ->name('organization.')
     ->group(function () {

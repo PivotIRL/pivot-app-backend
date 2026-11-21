@@ -41,6 +41,16 @@ class OrganizationAccessService
         return $this->roleAssignments->activeRolesFor($user->id, $organization->id);
     }
 
+    /**
+     * Whether the user has any link to the organization: a membership row in any status, or an active role.
+     * Users with no link are told the organization was not found, so they cannot learn which IDs exist.
+     */
+    public function hasAnyRelationshipWith(User $user, Organization $organization): bool
+    {
+        return $this->memberships->findFor($organization->id, $user->id) !== null
+            || $this->roleAssignments->activeRolesFor($user->id, $organization->id)->isNotEmpty();
+    }
+
     public function highestRoleIn(User $user, Organization $organization): ?OrganizationRole
     {
         return $this->rolesIn($user, $organization)

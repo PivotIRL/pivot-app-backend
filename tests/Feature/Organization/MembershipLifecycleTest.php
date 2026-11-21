@@ -136,7 +136,9 @@ class MembershipLifecycleTest extends TestCase
         $this->actingAsDashboard($this->makeOrgUser($organizationA, OrganizationRole::ORG_OWNER));
 
         $this->deleteJson($this->url($organizationA, "members/{$foreign->id}"), ['reason' => 'x'])->assertNotFound();
-        $this->getJson($this->url($organizationB, 'members'))->assertForbidden();
+        $this->getJson($this->url($organizationB, 'members'))
+            ->assertNotFound()
+            ->assertExactJson(['message' => 'Organization not found.']);
         $this->assertSame(MembershipStatus::ACTIVE, $foreign->fresh()->status);
     }
 
