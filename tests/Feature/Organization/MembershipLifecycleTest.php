@@ -136,7 +136,9 @@ class MembershipLifecycleTest extends TestCase
         $this->actingAsDashboard($this->makeOrgUser($organizationA, OrganizationRole::ORG_OWNER));
 
         $this->deleteJson($this->url($organizationA, "members/{$foreign->id}"), ['reason' => 'x'])->assertNotFound();
-        $this->getJson($this->url($organizationB, 'members'))->assertForbidden();
+        $this->getJson($this->url($organizationB, 'members'))
+            ->assertNotFound()
+            ->assertExactJson(['message' => 'Organization not found.']);
         $this->assertSame(MembershipStatus::ACTIVE, $foreign->fresh()->status);
     }
 
@@ -212,6 +214,31 @@ class MembershipLifecycleTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.status', 'deactivated');
+    }
+
+    public function test_member_list_includes_each_members_active_roles(): void
+    {
+        $organization = Organization::factory()->create();
+        $owner = $this->makeOrgUser($organization, OrganizationRole::ORG_OWNER);
+        $analyst = $this->makeOrgUser($organization, OrganizationRole::ORG_ANALYST);
+        $this->grantRole($analyst, $organization, OrganizationRole::ORG_ADMIN);
+        $member = $this->makeMember($organization);
+        $formerAdmin = $this->makeMember($organization);
+        $this->grantRole($formerAdmin, $organization, OrganizationRole::ORG_ADMIN)->update(['revoked_at' => now()]);
+
+        // A role in another organization must not leak into this one.
+        $this->grantRole($member, Organization::factory()->create(), OrganizationRole::ORG_OWNER);
+
+        $this->actingAsDashboard($owner);
+
+        $data = collect($this->getJson($this->url($organization, 'members'))->assertOk()->json('data'))
+            ->keyBy('user.id');
+
+        $this->assertSame('ORG_OWNER', $data[$owner->id]['role']);
+        $this->assertSame('ORG_ADMIN', $data[$analyst->id]['role']);
+        $this->assertSame('ORG_MEMBER', $data[$member->id]['role']);
+        $this->assertSame('ORG_MEMBER', $data[$formerAdmin->id]['role']);
+        $this->assertArrayNotHasKey('roles', $data[$owner->id]);
     }
 
     private function membershipOf($user): OrganizationMembership

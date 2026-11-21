@@ -59,7 +59,10 @@ class OrganizationControlService
         });
     }
 
-    public function remove(Organization $organization, User $actor, string $reason): void
+    /**
+     * @param  User|null  $actor  Null when an Admin Dashboard admin acts; the audit log then records the admin.
+     */
+    public function remove(Organization $organization, ?User $actor, string $reason): void
     {
         DB::transaction(function () use ($organization, $actor, $reason) {
             $this->organizations->delete($organization);

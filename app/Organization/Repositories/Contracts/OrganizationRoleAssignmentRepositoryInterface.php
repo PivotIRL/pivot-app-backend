@@ -14,6 +14,14 @@ interface OrganizationRoleAssignmentRepositoryInterface
      */
     public function activeRolesFor(int $userId, int $organizationId): Collection;
 
+    /**
+     * Active roles of several users in one organization, in a single query.
+     *
+     * @param  list<int>  $userIds
+     * @return Collection<int, Collection<int, OrganizationRole>> Keyed by user ID; users with no active role are absent.
+     */
+    public function activeRolesForUsers(int $organizationId, array $userIds): Collection;
+
     public function paginateActive(int $organizationId, ?OrganizationRole $role, int $perPage): LengthAwarePaginator;
 
     public function findActive(int $organizationId, int $userId, OrganizationRole $role): ?OrganizationRoleAssignment;

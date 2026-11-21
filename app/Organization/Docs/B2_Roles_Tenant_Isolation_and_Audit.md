@@ -364,7 +364,7 @@ $this->audit->record(
 |---|---|
 | `organization_id` | `organization` argument |
 | `actor_user_id` | `actor`, else the authenticated `User`, else `NULL`. With `actorType: SYSTEM` (scheduled jobs, B3) the authenticated user is never used. |
-| `actor_type` | Explicit `actorType`, else `system` (no actor), `pivot_staff` (actor has a Pivot role) or `user` |
+| `actor_type` | Explicit `actorType`, else `admin` (no User actor while an Admin Dashboard admin is signed in), `system` (no actor), `pivot_staff` (actor has a Pivot role) or `user` |
 | `action` | `AuditAction` enum value |
 | `target_type` / `target_id` | Model morph alias and key (see morph map below) |
 | `ip_address` / `user_agent` | Current request |
@@ -395,7 +395,9 @@ Later phases add their own cases to `AuditAction` (for example `domain.added`, `
 
 ### Actor types (`AuditActorType`)
 
-`user`, `pivot_staff`, `system`, `sso`, `scim`.
+`user`, `pivot_staff`, `system`, `sso`, `scim`, `admin`.
+
+`admin` is a Pivot App Admin Dashboard admin (`App\Models\Admin`, a separate table from `users`). For these rows `actor_user_id` is `NULL`, `metadata` contains `admin_id` and `admin_name`, and the API returns `"actor": { "id": null, "name": "<admin name>", "email": null }`. Organization Dashboard clients should label these rows as Pivot Admin changes and must not treat `actor.id` as a user ID.
 
 ### Reading audit history — `GET /organizations/{organization}/audit-logs`
 

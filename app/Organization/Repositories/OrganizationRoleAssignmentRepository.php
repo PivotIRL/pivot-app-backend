@@ -20,6 +20,21 @@ class OrganizationRoleAssignmentRepository implements OrganizationRoleAssignment
             ->pluck('role');
     }
 
+    public function activeRolesForUsers(int $organizationId, array $userIds): Collection
+    {
+        if ($userIds === []) {
+            return collect();
+        }
+
+        return OrganizationRoleAssignment::query()
+            ->where('organization_id', $organizationId)
+            ->whereIn('user_id', $userIds)
+            ->whereNull('revoked_at')
+            ->get(['user_id', 'role'])
+            ->groupBy('user_id')
+            ->map(fn (Collection $assignments) => $assignments->pluck('role')->values());
+    }
+
     public function paginateActive(int $organizationId, ?OrganizationRole $role, int $perPage): LengthAwarePaginator
     {
         return OrganizationRoleAssignment::query()

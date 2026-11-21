@@ -24,7 +24,10 @@ class OrganizationService
         protected ContractMembershipService $contractMemberships,
     ) {}
 
-    public function create(array $data, User $actor): Organization
+    /**
+     * @param  User|null  $actor  Null when an Admin Dashboard admin acts; the audit log then records the admin.
+     */
+    public function create(array $data, ?User $actor = null): Organization
     {
         return DB::transaction(function () use ($data, $actor) {
             $entitlements = $data['entitlements'] ?? [];
@@ -37,7 +40,7 @@ class OrganizationService
             $organization = $this->organizations->create([
                 ...$data,
                 'status' => $status,
-                'created_by' => $actor->id,
+                'created_by' => $actor?->id,
             ]);
 
             $this->createContractFromOrganization($organization);
@@ -80,7 +83,10 @@ class OrganizationService
         return $this->organizations->contractsFor($organization);
     }
 
-    public function update(Organization $organization, array $data, User $actor): Organization
+    /**
+     * @param  User|null  $actor  Null when an Admin Dashboard admin acts; the audit log then records the admin.
+     */
+    public function update(Organization $organization, array $data, ?User $actor = null): Organization
     {
         if ($organization->status === OrganizationStatus::EXPIRED) {
             throw OrganizationActionException::invalidStatusTransition($organization->status, 'edited; use contract renewal');

@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\AppAnalyzeController;
 use App\Http\Controllers\Admin\ResearchArticleController;
 use App\Http\Controllers\Admin\EventController;
 use App\Http\Controllers\Admin\SubscriptionController;
+use App\Http\Controllers\Admin\OrganizationController as AdminOrganizationController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -89,6 +90,12 @@ Route::prefix('dashboard')->name('admin.')->group(function () {
 
         // Events
         Route::resource('events', EventController::class);
+
+        // Organizations (Corporate): only admins allowed by the manage-organizations gate.
+        Route::middleware('can:manage-organizations')->group(function () {
+            Route::resource('organizations', AdminOrganizationController::class)
+                ->where(['organization' => '[0-9]{1,19}']);
+        });
 
         // // Subscription Management
         // Route::resource('subscriptions', SubscriptionController::class);

@@ -10,6 +10,7 @@ use App\Organization\Exceptions\OrganizationActionException;
 use App\Organization\Models\Organization;
 use App\Organization\Models\OrganizationMembership;
 use App\Organization\Repositories\Contracts\OrganizationMembershipRepositoryInterface;
+use App\Organization\Repositories\Contracts\OrganizationRoleAssignmentRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -23,11 +24,25 @@ class MembershipService
         protected OrganizationMembershipRepositoryInterface $memberships,
         protected SeatService $seats,
         protected AuditLogger $audit,
+        protected OrganizationRoleAssignmentRepositoryInterface $roleAssignments,
     ) {}
 
     public function list(Organization $organization, ?MembershipStatus $status = null, int $perPage = 25): LengthAwarePaginator
     {
-        return $this->memberships->paginateFor($organization->id, $status, $perPage);
+        $page = $this->memberships->paginateFor($organization->id, $status, $perPage);
+        $memberships = collect($page->items());
+
+        // One query for the whole page; ORG_MEMBER is implied by the membership itself.
+        $rolesByUser = $this->roleAssignments->activeRolesForUsers(
+            $organization->id,
+            $memberships->pluck('user_id')->filter()->unique()->values()->all(),
+        );
+
+        $memberships->each(
+            fn (OrganizationMembership $membership) => $membership->setActiveRoles($rolesByUser->get($membership->user_id, collect()))
+        );
+
+        return $page;
     }
 
     /**

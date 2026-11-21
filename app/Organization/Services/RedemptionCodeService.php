@@ -28,11 +28,17 @@ class RedemptionCodeService
     public function create(Organization $organization, array $data, User $actor): array
     {
         return DB::transaction(function () use ($organization, $data, $actor) {
-            $plaintext = 'PIVOT-'.Str::upper(Str::random(32));
-            $prefix = substr($plaintext, 0, 16);
+            $word = $this->codeWord($organization);
+            do {
+                $plaintext = $word.'-'.$this->randomSuffix();
+                $codeHash = hash('sha256', Str::upper($plaintext));
+            } while (OrganizationRedemptionCode::query()->where('code_hash', $codeHash)->exists());
+
+            // Only the non-secret organization word is stored as the visible prefix.
+            $prefix = $word.'-';
             $code = $this->codes->create($organization, [
                 ...$data,
-                'code_hash' => hash('sha256', $plaintext),
+                'code_hash' => $codeHash,
                 'code_prefix' => $prefix,
                 'created_by' => $actor->id,
                 'uses_count' => 0,
@@ -54,6 +60,26 @@ class RedemptionCodeService
 
             return ['code' => $code, 'plaintext' => $plaintext];
         });
+    }
+
+    /** First word of the organization name, lowercased and ASCII-only, e.g. "Test Organization" => "test". */
+    protected function codeWord(Organization $organization): string
+    {
+        $word = Str::before(Str::slug((string) $organization->name), '-');
+        $word = substr(preg_replace('/[^a-z0-9]/', '', $word), 0, 15);
+
+        return $word !== '' ? $word : 'org';
+    }
+
+    protected function randomSuffix(int $length = 6): string
+    {
+        $alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+        $suffix = '';
+        for ($i = 0; $i < $length; $i++) {
+            $suffix .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+        }
+
+        return $suffix;
     }
 
     public function deactivate(OrganizationRedemptionCode $code, User $actor): OrganizationRedemptionCode

@@ -31,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        \App\Organization\Exceptions\OrganizationApiExceptionRenderer::register($exceptions);
         $exceptions->dontReport(\App\Exceptions\GroupChallengeException::class);
 
         $exceptions->render(function (ValidationException $e, $request) {

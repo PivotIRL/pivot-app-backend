@@ -2,6 +2,7 @@
 
 namespace App\Organization\Http\Resources;
 
+use App\Organization\Enums\AuditActorType;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -20,11 +21,21 @@ class OrganizationAuditLogResource extends JsonResource
             'organization_id' => $this->organization_id === null ? null : (int) $this->organization_id,
             'action' => $this->action->value,
             'actor_type' => $this->actor_type->value,
-            'actor' => $this->whenLoaded('actor', fn () => $this->actor ? [
-                'id' => $this->actor->id,
-                'name' => $this->actor->name,
-                'email' => $this->actor->email,
-            ] : null),
+            // when() instead of whenLoaded(): whenLoaded() skips the callback when the relation is null.
+            'actor' => $this->when($this->resource->relationLoaded('actor'), fn () => match (true) {
+                $this->actor !== null => [
+                    'id' => $this->actor->id,
+                    'name' => $this->actor->name,
+                    'email' => $this->actor->email,
+                ],
+                // Admin Dashboard admins are not Users: same shape, without a user ID or email.
+                $this->actor_type === AuditActorType::ADMIN => [
+                    'id' => null,
+                    'name' => $this->metadata['admin_name'] ?? 'Pivot Admin',
+                    'email' => null,
+                ],
+                default => null,
+            }),
             'target_type' => $this->target_type,
             'target_id' => $this->target_type === 'organization' && is_numeric($this->target_id) ? (int) $this->target_id : $this->target_id,
             'metadata' => $this->metadata ?? (object) [],

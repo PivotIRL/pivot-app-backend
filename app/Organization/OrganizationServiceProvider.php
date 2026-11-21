@@ -2,8 +2,10 @@
 
 namespace App\Organization;
 
+use App\Models\Admin;
 use App\Organization\Console\Commands\AssignPivotRoleCommand;
 use App\Organization\Console\Commands\ProvisionDashboardAccountsCommand;
+use App\Organization\Http\Middleware\AuthenticateOrganizationRequest;
 use App\Organization\Http\Middleware\EnsureOrganizationDashboardAccess;
 use App\Organization\Http\Middleware\EnsureOrganizationTenant;
 use App\Organization\Http\Middleware\UseCorporateUserModel;
@@ -79,6 +81,13 @@ class OrganizationServiceProvider extends ServiceProvider
         Gate::policy(Organization::class, OrganizationPolicy::class);
         Gate::policy(OrganizationRoleAssignment::class, OrganizationRoleAssignmentPolicy::class);
         Gate::policy(OrganizationMembership::class, OrganizationMembershipPolicy::class);
+
+        // Admin Dashboard: managing organizations needs an active admin on the configured allowlist.
+        Gate::define('manage-organizations', function ($user): bool {
+            return $user instanceof Admin
+                && $user->status === 'active'
+                && in_array(strtolower((string) $user->email), config('organization.admin_dashboard.manager_emails', []), true);
+        });
     }
 
     // Stable audit target_type values instead of PHP class names.
@@ -123,6 +132,7 @@ class OrganizationServiceProvider extends ServiceProvider
     private function registerRoutes(): void
     {
         $router = $this->app->make(Router::class);
+        $router->aliasMiddleware('organization.auth', AuthenticateOrganizationRequest::class);
         $router->aliasMiddleware('organization.user', UseCorporateUserModel::class);
         $router->aliasMiddleware('organization.tenant', EnsureOrganizationTenant::class);
         $router->aliasMiddleware('organization.dashboard', EnsureOrganizationDashboardAccess::class);

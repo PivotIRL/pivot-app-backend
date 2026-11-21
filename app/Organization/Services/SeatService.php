@@ -149,7 +149,7 @@ class SeatService
                 target: $organization,
                 metadata: ['released' => $released, 'reason' => $reason],
                 actor: $actor,
-                actorType: $actor ? null : AuditActorType::SYSTEM,
+                actorType: $actor ? null : $this->audit->actorTypeWithoutUser(),
             );
         }
 

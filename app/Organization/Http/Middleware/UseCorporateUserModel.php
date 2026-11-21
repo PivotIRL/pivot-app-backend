@@ -4,6 +4,7 @@ namespace App\Organization\Http\Middleware;
 
 use App\Models\User;
 use Closure;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -18,7 +19,12 @@ class UseCorporateUserModel
         $authenticated = $request->user();
 
         if ($authenticated !== null && ! $authenticated instanceof User) {
-            $user = User::findOrFail($authenticated->getKey());
+            $user = User::find($authenticated->getKey());
+
+            // The token's user no longer exists: an authentication failure, not a missing resource.
+            if ($user === null) {
+                throw new AuthenticationException('Unauthenticated.', ['sanctum']);
+            }
 
             if (method_exists($authenticated, 'currentAccessToken') && $authenticated->currentAccessToken()) {
                 $user->withAccessToken($authenticated->currentAccessToken());

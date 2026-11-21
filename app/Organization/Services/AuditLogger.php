@@ -2,6 +2,7 @@
 
 namespace App\Organization\Services;
 
+use App\Models\Admin;
 use App\Models\User;
 use App\Organization\Enums\AuditAction;
 use App\Organization\Enums\AuditActorType;
@@ -47,6 +48,16 @@ class AuditLogger
     ): OrganizationAuditLog {
         // An explicit SYSTEM action never borrows whoever happens to be logged in.
         $actor ??= $actorType === AuditActorType::SYSTEM ? null : $this->authenticatedUser();
+
+        // With no User actor, a signed-in Admin Dashboard admin is recorded instead of "system".
+        // admins is a separate table, so actor_user_id stays NULL and the admin is identified in metadata.
+        $admin = $actor === null && in_array($actorType, [null, AuditActorType::ADMIN], true)
+            ? $this->authenticatedAdmin()
+            : null;
+        if ($admin) {
+            $actorType = AuditActorType::ADMIN;
+            $metadata = [...$metadata, 'admin_id' => $admin->getKey(), 'admin_name' => $admin->name];
+        }
         $request = request();
 
         return $this->auditLogs->create([
@@ -60,6 +71,22 @@ class AuditLogger
             'user_agent' => $request?->userAgent(),
             'metadata' => $metadata === [] ? null : $this->redact($metadata),
         ]);
+    }
+
+    /**
+     * The actor type for a change with no User actor: the signed-in admin, otherwise the system.
+     */
+    public function actorTypeWithoutUser(): AuditActorType
+    {
+        return $this->authenticatedAdmin() ? AuditActorType::ADMIN : AuditActorType::SYSTEM;
+    }
+
+    private function authenticatedAdmin(): ?Admin
+    {
+        // Admin Dashboard routes make "admin" the default guard (Authenticate middleware calls shouldUse).
+        $user = auth()->user();
+
+        return $user instanceof Admin ? $user : null;
     }
 
     private function authenticatedUser(): ?User
