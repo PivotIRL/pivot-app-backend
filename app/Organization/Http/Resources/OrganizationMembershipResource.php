@@ -20,6 +20,8 @@ class OrganizationMembershipResource extends JsonResource
                 'name' => $this->user->name,
                 'email' => $this->user->email,
             ]),
+            // Highest-ranked active role. Present on the member list.
+            'role' => $this->whenLoaded('activeRoles', fn () => $this->activeRoles->first()->value),
             'status' => $this->status->value,
             'joined_via' => $this->joined_via?->value,
             'joined_at' => $this->joined_at,

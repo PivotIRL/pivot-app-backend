@@ -5,6 +5,7 @@ namespace App\Organization\Models;
 use App\Organization\Database\Factories\OrganizationMembershipFactory;
 use App\Organization\Enums\MembershipJoinMethod;
 use App\Organization\Enums\MembershipStatus;
+use App\Organization\Enums\OrganizationRole;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -61,5 +62,22 @@ class OrganizationMembership extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Attach the member's active role assignments (not persisted). ORG_MEMBER is always included, because
+     * membership itself is the member role; the list is ordered highest rank first.
+     *
+     * @param  iterable<OrganizationRole>  $assignedRoles
+     */
+    public function setActiveRoles(iterable $assignedRoles): static
+    {
+        $roles = collect($assignedRoles)
+            ->push(OrganizationRole::ORG_MEMBER)
+            ->unique(fn (OrganizationRole $role) => $role->value)
+            ->sortByDesc(fn (OrganizationRole $role) => $role->rank())
+            ->values();
+
+        return $this->setRelation('activeRoles', $roles);
     }
 }
