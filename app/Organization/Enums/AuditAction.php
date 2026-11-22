@@ -36,6 +36,8 @@ enum AuditAction: string
     case MEMBERSHIP_SUSPENDED = 'organization_membership.suspended';
     case MEMBERSHIP_DEACTIVATED = 'organization_membership.deactivated';
     case MEMBERSHIPS_RELEASED = 'organization_membership.released';
+    case MEMBERSHIP_REMOVED = 'organization_membership.removed';
+    case MEMBER_PROFILE_UPDATED = 'organization_membership.profile_updated';
 
     case INVITATION_CREATED = 'organization_invitation.created';
     case INVITATION_ACCEPTED = 'organization_invitation.accepted';

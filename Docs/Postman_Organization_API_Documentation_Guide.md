@@ -219,7 +219,9 @@ Confirm valid `code_type` values. The create response includes a one-time code; 
 | List members | `GET /organizations/{{organizationId}}/members` | Optional query: `status` (valid membership status enum) and `per_page` (integer, 1-100; default 25). |
 | Suspend member | `POST /organizations/{{organizationId}}/members/{{membershipId}}/suspend` | JSON: required `reason` (string, maximum 255 characters). |
 | Restore member | `POST /organizations/{{organizationId}}/members/{{membershipId}}/restore` | No body. |
+| Update member | `PATCH /organizations/{{organizationId}}/members/{{membershipId}}` (`PUT` also accepted) | JSON: required `name` (string, maximum 255; trimmed). Edits the member's display name on their Pivot user account. The email cannot be changed through this endpoint; an `email` field is ignored. Only `invited`, `active` or `suspended` members; otherwise 409. |
 | Deactivate member | `DELETE /organizations/{{organizationId}}/members/{{membershipId}}` | JSON: required `reason` (string, maximum 255 characters). |
+| Remove member (soft delete) | `DELETE /organizations/{{organizationId}}/members/{{membershipId}}/remove` | No body. Only a `deactivated` member (otherwise 409). Sets `deleted_at` and hides the member from the list; the record and audit history are kept. |
 | List invitations | `GET /organizations/{{organizationId}}/invitations` | Optional query: `status` (valid invitation status enum) and `per_page` (integer, 1-100; default 25). |
 | Create invitation | `POST /organizations/{{organizationId}}/invitations` | JSON: required `email`; optional `role` (defaults to `ORG_MEMBER`) and `expires_in_days` (integer, 1-30). |
 | Revoke invitation | `DELETE /organizations/{{organizationId}}/invitations/{{invitationId}}` | No body. |

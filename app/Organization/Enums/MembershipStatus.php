@@ -22,6 +22,18 @@ enum MembershipStatus: string
         return in_array($this, [self::ACTIVE, self::SUSPENDED, self::INVITED], true);
     }
 
+    // Only an offboarded member can be removed from the dashboard list (soft delete).
+    public function canBeRemoved(): bool
+    {
+        return $this === self::DEACTIVATED;
+    }
+
+    // The member's name and email can be edited only while they are still linked to the organization.
+    public function canBeEdited(): bool
+    {
+        return in_array($this, [self::INVITED, self::ACTIVE, self::SUSPENDED], true);
+    }
+
     // Restoring takes a seat again, so it always goes through SeatService::allocate().
     public function canBeRestored(): bool
     {

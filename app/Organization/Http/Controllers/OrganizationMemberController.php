@@ -5,6 +5,7 @@ namespace App\Organization\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Organization\Http\Requests\ListOrganizationMembersRequest;
 use App\Organization\Http\Requests\MembershipActionRequest;
+use App\Organization\Http\Requests\UpdateOrganizationMemberRequest;
 use App\Organization\Http\Resources\OrganizationMembershipResource;
 use App\Organization\Models\Organization;
 use App\Organization\Models\OrganizationMembership;
@@ -61,6 +62,31 @@ class OrganizationMemberController extends Controller
 
         return OrganizationMembershipResource::make(
             $this->memberships->deactivate($membership, $request->reason(), $request->user())
+        );
+    }
+
+    public function update(
+        UpdateOrganizationMemberRequest $request,
+        Organization $organization,
+        OrganizationMembership $membership,
+    ): OrganizationMembershipResource {
+        $this->authorizeManage($organization, $membership);
+
+        return OrganizationMembershipResource::make(
+            $this->memberships->updateMember($membership, $request->memberName(), $request->user())
+        );
+    }
+
+    // Soft delete of an already deactivated member (hidden from the member list, history kept).
+    public function remove(
+        Request $request,
+        Organization $organization,
+        OrganizationMembership $membership,
+    ): OrganizationMembershipResource {
+        $this->authorizeManage($organization, $membership);
+
+        return OrganizationMembershipResource::make(
+            $this->memberships->remove($membership, $request->user())
         );
     }
 

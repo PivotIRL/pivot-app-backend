@@ -40,11 +40,19 @@ class OrganizationMembershipRepository implements OrganizationMembershipReposito
 
     public function findFor(int $organizationId, int $userId): ?OrganizationMembership
     {
-        return OrganizationMembership::query()
+        // Includes removed (soft-deleted) rows: rows are reused, and a removed member must stay blocked from rejoining.
+        return OrganizationMembership::withTrashed()
             ->where('organization_id', $organizationId)
             ->where('user_id', $userId)
             ->latest('id')
             ->first();
+    }
+
+    public function softDelete(OrganizationMembership $membership): OrganizationMembership
+    {
+        $membership->delete();
+
+        return $membership;
     }
 
     public function findActiveForUser(int $userId): ?OrganizationMembership

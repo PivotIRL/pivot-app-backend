@@ -202,6 +202,8 @@ class SeatService
             'activated_at' => $now,
             'deactivated_at' => null,
             'deactivation_reason' => null,
+            // A removed member who is brought back is shown on the dashboard again.
+            'deleted_at' => null,
         ];
 
         // Members coming back from a suspension or a contract expiry keep their original join date.

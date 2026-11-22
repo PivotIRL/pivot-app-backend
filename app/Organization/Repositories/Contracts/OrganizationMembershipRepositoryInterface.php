@@ -17,9 +17,15 @@ interface OrganizationMembershipRepositoryInterface
     public function paginateFor(int $organizationId, ?MembershipStatus $status, int $perPage): LengthAwarePaginator;
 
     /**
-     * The user's membership row in this organization. Rows are reused, so there is normally one per user.
+     * The user's membership row in this organization, including a removed (soft-deleted) one.
+     * Rows are reused, so there is normally one per user.
      */
     public function findFor(int $organizationId, int $userId): ?OrganizationMembership;
+
+    /**
+     * Hide the membership from the dashboard (sets deleted_at). The row and its audit history are kept.
+     */
+    public function softDelete(OrganizationMembership $membership): OrganizationMembership;
 
     /**
      * The user's active membership in any organization (at most one, enforced by a unique index).

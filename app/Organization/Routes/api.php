@@ -88,7 +88,10 @@ Route::middleware(['organization.auth:organization-dashboard', 'organization.das
             Route::get('members', [OrganizationMemberController::class, 'index'])->name('members.index');
             Route::post('members/{membership}/suspend', [OrganizationMemberController::class, 'suspend'])->name('members.suspend');
             Route::post('members/{membership}/restore', [OrganizationMemberController::class, 'restore'])->name('members.restore');
+            Route::match(['put', 'patch'], 'members/{membership}', [OrganizationMemberController::class, 'update'])->name('members.update');
             Route::delete('members/{membership}', [OrganizationMemberController::class, 'destroy'])->name('members.destroy');
+            // Soft delete: only a deactivated member; hides them from the list, keeps history and the rejoin block.
+            Route::delete('members/{membership}/remove', [OrganizationMemberController::class, 'remove'])->name('members.remove');
 
             Route::get('invitations', [OrganizationInvitationController::class, 'index'])->name('invitations.index');
             Route::post('invitations', [OrganizationInvitationController::class, 'store'])->name('invitations.store');
