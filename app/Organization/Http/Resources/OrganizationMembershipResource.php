@@ -28,6 +28,8 @@ class OrganizationMembershipResource extends JsonResource
             'activated_at' => $this->activated_at,
             'deactivated_at' => $this->deactivated_at,
             'deactivation_reason' => $this->deactivation_reason,
+            // Set once the member is removed (soft delete); removed members are not in the list.
+            'deleted_at' => $this->deleted_at,
         ];
     }
 }

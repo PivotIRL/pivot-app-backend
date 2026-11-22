@@ -339,7 +339,9 @@ Admin (tenant-scoped, dashboard token; middleware `auth:organization-dashboard`,
 | GET | `/api/v1/organizations/{organization}/members` | `status?`, `per_page?` | `members.view` |
 | POST | `…/members/{membership}/suspend` | `reason` | `members.manage` + rank |
 | POST | `…/members/{membership}/restore` | — | `members.manage` + rank |
+| PUT/PATCH | `…/members/{membership}` | `name` (email is not editable) | `members.manage` + rank; member must be invited/active/suspended |
 | DELETE | `…/members/{membership}` | `reason` | `members.manage` + rank |
+| DELETE | `…/members/{membership}/remove` | — | `members.manage` + rank; member must be deactivated (soft delete) |
 | GET | `…/invitations` | `status?`, `per_page?` | `invitations.manage` |
 | POST | `…/invitations` | `email`, `role?`, `expires_in_days?` (1–30) | `invitations.manage` (+ role rank for admin roles) |
 | DELETE | `…/invitations/{invitation}` | — | `invitations.manage` |

@@ -97,4 +97,60 @@ class MembershipService
     {
         return $this->seats->release($membership, $reason, $actor)->load('user:id,name,email');
     }
+
+    /**
+     * Soft delete: hides an offboarded member from the dashboard. The seat and roles were already released by
+     * deactivate(); the row is kept so the audit history and the self-service rejoin block still apply.
+     */
+    public function remove(OrganizationMembership $membership, User $actor): OrganizationMembership
+    {
+        if (! $membership->status->canBeRemoved()) {
+            throw OrganizationActionException::invalidMembershipTransition($membership->status, 'removed');
+        }
+
+        return DB::transaction(function () use ($membership, $actor) {
+            $this->memberships->softDelete($membership);
+
+            $this->audit->record(
+                action: AuditAction::MEMBERSHIP_REMOVED,
+                organization: $membership->organization_id,
+                target: $membership,
+                metadata: ['user_id' => $membership->user_id],
+                actor: $actor,
+            );
+
+            return $membership->load('user:id,name,email');
+        });
+    }
+
+    /**
+     * Updates the member's name. It lives on the user's Pivot account, so the change is also visible in the
+     * Mobile App. The email is never editable here (it is the personal account's login). Unchanged names are
+     * not saved or audited.
+     */
+    public function updateMember(OrganizationMembership $membership, string $name, User $actor): OrganizationMembership
+    {
+        if (! $membership->status->canBeEdited()) {
+            throw OrganizationActionException::invalidMembershipTransition($membership->status, 'edited');
+        }
+
+        return DB::transaction(function () use ($membership, $name, $actor) {
+            $user = $membership->user()->lockForUpdate()->firstOrFail();
+            $previousName = $user->name;
+
+            if ($previousName !== $name) {
+                $user->forceFill(['name' => $name])->save();
+
+                $this->audit->record(
+                    action: AuditAction::MEMBER_PROFILE_UPDATED,
+                    organization: $membership->organization_id,
+                    target: $membership,
+                    metadata: ['user_id' => $user->id, 'changes' => ['name' => ['from' => $previousName, 'to' => $name]]],
+                    actor: $actor,
+                );
+            }
+
+            return $membership->load('user:id,name,email');
+        });
+    }
 }

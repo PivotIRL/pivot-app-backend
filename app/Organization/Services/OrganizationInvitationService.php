@@ -139,6 +139,7 @@ class OrganizationInvitationService
                 'status' => MembershipStatus::INVITED,
                 'deactivated_at' => null,
                 'deactivation_reason' => null,
+                'deleted_at' => null,
             ]);
         }
     }
