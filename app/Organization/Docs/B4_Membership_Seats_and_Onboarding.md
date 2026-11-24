@@ -341,7 +341,10 @@ Admin (tenant-scoped, dashboard token; middleware `auth:organization-dashboard`,
 | POST | `…/members/{membership}/restore` | — | `members.manage` + rank |
 | PUT/PATCH | `…/members/{membership}` | `name` (email is not editable) | `members.manage` + rank; member must be invited/active/suspended |
 | DELETE | `…/members/{membership}` | `reason` | `members.manage` + rank |
-| DELETE | `…/members/{membership}/remove` | — | `members.manage` + rank; member must be deactivated (soft delete) |
+| DELETE | `…/members/{membership}/remove` | — | `members.manage` + rank; any status; permanent delete (roles and pending invitation revoked, audit kept) |
+| POST | `…/members/invitation-link` | `email`, `expires_in_days?` (1–30) | `invitations.manage`; existing Pivot users only; emails a signed `/{user}/{organization}/{membership}` link |
+
+Member invitation link: `GET /{user_id}/{organization_id}/{membership_id}?expires=…&signature=…` (public web page, read-only) shows the invitation and an "Open in Pivot app" button (`ORGANIZATION_MEMBER_INVITE_APP_URL?link=…`). The app accepts with `POST /api/v1/organization/invitation-link/accept` `{ "link": "…" }` (mobile token). Deactivating or removing the invited member cancels the link.
 | GET | `…/invitations` | `status?`, `per_page?` | `invitations.manage` |
 | POST | `…/invitations` | `email`, `role?`, `expires_in_days?` (1–30) | `invitations.manage` (+ role rank for admin roles) |
 | DELETE | `…/invitations/{invitation}` | — | `invitations.manage` |

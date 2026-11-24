@@ -4,15 +4,18 @@ namespace App\Organization\Services;
 
 use App\Models\User;
 use App\Organization\Enums\AuditAction;
+use App\Organization\Enums\InvitationStatus;
 use App\Organization\Enums\MembershipJoinMethod;
 use App\Organization\Enums\MembershipStatus;
 use App\Organization\Exceptions\OrganizationActionException;
 use App\Organization\Models\Organization;
 use App\Organization\Models\OrganizationMembership;
+use App\Organization\Repositories\Contracts\OrganizationInvitationRepositoryInterface;
 use App\Organization\Repositories\Contracts\OrganizationMembershipRepositoryInterface;
 use App\Organization\Repositories\Contracts\OrganizationRoleAssignmentRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Admin membership lifecycle: invited → active → suspended → deactivated / expired, plus restore.
@@ -25,6 +28,7 @@ class MembershipService
         protected SeatService $seats,
         protected AuditLogger $audit,
         protected OrganizationRoleAssignmentRepositoryInterface $roleAssignments,
+        protected OrganizationInvitationRepositoryInterface $invitations,
     ) {}
 
     public function list(Organization $organization, ?MembershipStatus $status = null, int $perPage = 25): LengthAwarePaginator
@@ -99,27 +103,41 @@ class MembershipService
     }
 
     /**
-     * Soft delete: hides an offboarded member from the dashboard. The seat and roles were already released by
-     * deactivate(); the row is kept so the audit history and the self-service rejoin block still apply.
+     * Permanently deletes the membership, in any status. Its organization roles are revoked and any pending
+     * invitation for the person is revoked, so nothing brings the row back by itself. Deleting an active row
+     * frees its seat. The personal Pivot account is not touched, and the audit entry is written before the delete.
+     *
+     * The row is gone, so the person can join again later like a new member (work email, code or invitation).
      */
-    public function remove(OrganizationMembership $membership, User $actor): OrganizationMembership
+    public function remove(OrganizationMembership $membership, User $actor): void
     {
-        if (! $membership->status->canBeRemoved()) {
-            throw OrganizationActionException::invalidMembershipTransition($membership->status, 'removed');
-        }
+        DB::transaction(function () use ($membership, $actor) {
+            $membership->loadMissing('user:id,email');
 
-        return DB::transaction(function () use ($membership, $actor) {
-            $this->memberships->softDelete($membership);
+            $revokedRoles = $this->roleAssignments->revokeAllFor($membership->organization_id, $membership->user_id);
+
+            $revokedInvitation = $membership->user
+                ? $this->invitations->findPending($membership->organization_id, Str::lower(trim($membership->user->email)))
+                : null;
+
+            if ($revokedInvitation) {
+                $this->invitations->update($revokedInvitation, ['status' => InvitationStatus::REVOKED]);
+            }
 
             $this->audit->record(
                 action: AuditAction::MEMBERSHIP_REMOVED,
                 organization: $membership->organization_id,
                 target: $membership,
-                metadata: ['user_id' => $membership->user_id],
+                metadata: [
+                    'user_id' => $membership->user_id,
+                    'previous_status' => $membership->status->value,
+                    'roles_revoked' => $revokedRoles->map->value->values()->all(),
+                    'invitation_revoked_id' => $revokedInvitation?->id,
+                ],
                 actor: $actor,
             );
 
-            return $membership->load('user:id,name,email');
+            $this->memberships->delete($membership);
         });
     }
 

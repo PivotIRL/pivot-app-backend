@@ -61,6 +61,11 @@ class OrganizationActionException extends HttpException
         return new self(409, "A membership with status '{$current->value}' cannot be {$action}.");
     }
 
+    public static function memberSuspendedUseRestore(): self
+    {
+        return new self(409, 'This member is suspended. Restore their membership instead of inviting them.');
+    }
+
     public static function alreadyActiveMember(): self
     {
         return new self(409, 'This person is already an active member of this organization.');

@@ -2,6 +2,7 @@
 
 use App\Organization\Http\Controllers\CorporateAccessController;
 use App\Organization\Http\Controllers\CorporateJoinController;
+use App\Organization\Http\Controllers\MemberInvitationLinkController;
 use App\Organization\Http\Controllers\OrganizationAuditLogController;
 use App\Organization\Http\Controllers\OrganizationControlController;
 use App\Organization\Http\Controllers\OrganizationController;
@@ -86,11 +87,13 @@ Route::middleware(['organization.auth:organization-dashboard', 'organization.das
 
             // Members and seats (B4)
             Route::get('members', [OrganizationMemberController::class, 'index'])->name('members.index');
+            // Emails a signed {user}/{organization}/{membership} link to an existing Pivot user (invited, no seat yet).
+            Route::post('members/invitation-link', [MemberInvitationLinkController::class, 'send'])->name('members.invitation-link');
             Route::post('members/{membership}/suspend', [OrganizationMemberController::class, 'suspend'])->name('members.suspend');
             Route::post('members/{membership}/restore', [OrganizationMemberController::class, 'restore'])->name('members.restore');
             Route::match(['put', 'patch'], 'members/{membership}', [OrganizationMemberController::class, 'update'])->name('members.update');
             Route::delete('members/{membership}', [OrganizationMemberController::class, 'destroy'])->name('members.destroy');
-            // Soft delete: only a deactivated member; hides them from the list, keeps history and the rejoin block.
+            // Permanent delete in any status; the person may join again later as a new member.
             Route::delete('members/{membership}/remove', [OrganizationMemberController::class, 'remove'])->name('members.remove');
 
             Route::get('invitations', [OrganizationInvitationController::class, 'index'])->name('invitations.index');
@@ -137,4 +140,5 @@ Route::middleware(['organization.auth:sanctum', 'organization.user'])
         Route::post('join/work-email', [CorporateJoinController::class, 'workEmail'])->name('join.work-email');
         Route::post('join/code', [CorporateJoinController::class, 'redeemCode'])->name('join.code');
         Route::post('invitations/accept', [CorporateJoinController::class, 'acceptInvitation'])->name('invitations.accept');
+        Route::post('invitation-link/accept', [CorporateJoinController::class, 'acceptInvitationLink'])->name('invitation-link.accept');
     });

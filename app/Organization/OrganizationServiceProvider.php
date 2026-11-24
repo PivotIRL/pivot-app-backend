@@ -144,5 +144,7 @@ class OrganizationServiceProvider extends ServiceProvider
         Route::middleware('api')
             ->prefix('api/v1')
             ->group(__DIR__.'/Routes/api.php');
+
+        Route::middleware('web')->group(__DIR__.'/Routes/web.php');
     }
 }
