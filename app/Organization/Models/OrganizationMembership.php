@@ -10,15 +10,10 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
-/**
- * Soft-deleted rows are removed members: hidden from the dashboard and from route binding, but still found by
- * OrganizationMembershipRepository::findFor() so history, access checks and the rejoin block keep working.
- */
 class OrganizationMembership extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     // Set when the organization's contract expires; only these memberships are restored on renewal.
     public const REASON_CONTRACT_EXPIRED = 'organization_contract_expired';
@@ -40,8 +35,6 @@ class OrganizationMembership extends Model
         'expires_at',
         'deactivation_reason',
         'provisioning_source_id',
-        // Cleared when a removed member is invited or restored again.
-        'deleted_at',
     ];
 
     protected function casts(): array

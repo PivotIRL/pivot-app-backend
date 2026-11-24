@@ -3,20 +3,23 @@
 namespace Tests\Feature\Organization;
 
 use App\Organization\Enums\AuditAction;
+use App\Organization\Enums\InvitationStatus;
 use App\Organization\Enums\MembershipStatus;
 use App\Organization\Enums\OrganizationRole;
 use App\Organization\Enums\PivotRole;
 use App\Organization\Models\Organization;
 use App\Organization\Models\OrganizationAuditLog;
 use App\Organization\Models\OrganizationDomain;
+use App\Organization\Models\OrganizationInvitation;
 use App\Organization\Models\OrganizationMembership;
+use App\Organization\Models\OrganizationRoleAssignment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\Feature\Organization\Concerns\BuildsOrganizationActors;
 use Tests\TestCase;
 
 /**
- * PUT/PATCH …/members/{membership} (edit name only) and DELETE …/members/{membership}/remove (soft delete).
+ * PUT/PATCH …/members/{membership} (edit name only) and DELETE …/members/{membership}/remove (permanent delete).
  */
 class MemberUpdateAndRemovalTest extends TestCase
 {
@@ -129,61 +132,101 @@ class MemberUpdateAndRemovalTest extends TestCase
         $this->patchJson($this->url($organization, "members/{$membership->id}"), ['name' => 'x'])->assertStatus(409);
     }
 
-    public function test_removing_soft_deletes_a_deactivated_member_and_hides_them_from_the_list(): void
+    public function test_removing_an_active_member_deletes_the_row_frees_the_seat_and_revokes_roles(): void
     {
         $organization = Organization::factory()->create();
-        $member = $this->makeMember($organization);
-        $membership = $this->membershipOf($member);
+        $analyst = $this->makeOrgUser($organization, OrganizationRole::ORG_ANALYST);
+        $membership = $this->membershipOf($analyst);
         $this->actingAsDashboard($this->makeOrgUser($organization, OrganizationRole::ORG_OWNER));
+        $activeBefore = OrganizationMembership::where('organization_id', $organization->id)->where('status', 'active')->count();
 
-        // An active member must be deactivated first.
-        $this->deleteJson($this->url($organization, "members/{$membership->id}/remove"))->assertStatus(409);
-
-        $this->deleteJson($this->url($organization, "members/{$membership->id}"), ['reason' => 'Left'])->assertOk();
         $this->deleteJson($this->url($organization, "members/{$membership->id}/remove"))
             ->assertOk()
-            ->assertJsonPath('status', 'deactivated')
-            ->assertJsonPath('deleted_at', fn ($value) => $value !== null);
+            ->assertExactJson(['message' => 'Member removed.']);
 
-        $this->assertSoftDeleted($membership);
-        $this->assertNotNull($member->fresh());
-        $this->assertTrue(OrganizationAuditLog::where('action', AuditAction::MEMBERSHIP_REMOVED)->exists());
+        $this->assertDatabaseMissing('organization_memberships', ['id' => $membership->id]);
+        $this->assertSame($activeBefore - 1, OrganizationMembership::where('organization_id', $organization->id)->where('status', 'active')->count());
+        $this->assertFalse(OrganizationRoleAssignment::where('user_id', $analyst->id)->whereNull('revoked_at')->exists());
+        $this->assertNotNull($analyst->fresh()); // the personal account is kept
+
+        $log = OrganizationAuditLog::where('action', AuditAction::MEMBERSHIP_REMOVED)->sole();
+        $this->assertSame('active', $log->metadata['previous_status']);
+        $this->assertSame(['ORG_ANALYST'], $log->metadata['roles_revoked']);
 
         $ids = collect($this->getJson($this->url($organization, 'members'))->assertOk()->json('data'))->pluck('id');
         $this->assertNotContains($membership->id, $ids);
 
-        // A removed member is no longer reachable by ID.
+        // The row is gone, so every member endpoint now returns 404.
         $this->deleteJson($this->url($organization, "members/{$membership->id}/remove"))->assertNotFound();
         $this->postJson($this->url($organization, "members/{$membership->id}/restore"))->assertNotFound();
         $this->patchJson($this->url($organization, "members/{$membership->id}"), ['name' => 'x'])->assertNotFound();
     }
 
-    public function test_removal_follows_the_rank_rules(): void
+    public function test_members_in_any_status_can_be_removed(): void
+    {
+        $organization = Organization::factory()->create();
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+
+        foreach (MembershipStatus::cases() as $status) {
+            $membership = OrganizationMembership::factory()->create([
+                'organization_id' => $organization->id,
+                'status' => $status,
+            ]);
+
+            $this->deleteJson($this->url($organization, "members/{$membership->id}/remove"))->assertOk();
+            $this->assertDatabaseMissing('organization_memberships', ['id' => $membership->id]);
+        }
+    }
+
+    public function test_removing_an_invited_member_revokes_their_pending_invitation(): void
+    {
+        $organization = Organization::factory()->create();
+        $invitee = $this->makeUser();
+        $this->actingAsDashboard($this->makeOrgUser($organization, OrganizationRole::ORG_OWNER));
+
+        $this->postJson($this->url($organization, 'invitations'), ['email' => $invitee->email])->assertCreated();
+        $membership = $this->membershipOf($invitee);
+        $this->assertSame(MembershipStatus::INVITED, $membership->status);
+
+        $this->deleteJson($this->url($organization, "members/{$membership->id}/remove"))->assertOk();
+
+        $this->assertSame(InvitationStatus::REVOKED, OrganizationInvitation::where('email', strtolower($invitee->email))->sole()->status);
+    }
+
+    public function test_removal_follows_the_rank_rules_and_tenant_isolation(): void
     {
         $organization = Organization::factory()->create();
         $owner = $this->makeOrgUser($organization, OrganizationRole::ORG_OWNER);
-        $this->membershipOf($owner)->update(['status' => MembershipStatus::DEACTIVATED]);
-        $this->actingAsDashboard($this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN));
+        $admin = $this->makeOrgUser($organization, OrganizationRole::ORG_ADMIN);
+        $foreign = $this->membershipOf($this->makeMember(Organization::factory()->create()));
+        $this->actingAsDashboard($admin);
 
-        // Status set directly, so the owner's role assignment is still active and the rank check applies.
         $this->deleteJson($this->url($organization, "members/{$this->membershipOf($owner)->id}/remove"))->assertForbidden();
+        $this->deleteJson($this->url($organization, "members/{$this->membershipOf($admin)->id}/remove"))->assertForbidden();
+        $this->deleteJson($this->url($organization, "members/{$foreign->id}/remove"))->assertNotFound();
+
+        $this->assertDatabaseHas('organization_memberships', ['id' => $foreign->id]);
+        $this->assertDatabaseHas('organization_memberships', ['id' => $this->membershipOf($owner)->id]);
     }
 
-    public function test_a_removed_member_still_cannot_rejoin_by_themselves(): void
+    public function test_a_removed_member_can_join_again_like_a_new_member(): void
     {
         $organization = Organization::factory()->create();
-        OrganizationDomain::factory()->create(['organization_id' => $organization->id, 'domain' => 'acme.com']);
+        OrganizationDomain::factory()->create(['organization_id' => $organization->id, 'domain' => 'acme.com', 'verified_at' => now()]);
         $user = $this->makeUser();
-        $user->forceFill(['email' => 'gone@acme.com'])->save();
+        $user->forceFill(['email' => 'back@acme.com'])->save();
         $membership = OrganizationMembership::factory()->deactivated()->create(['organization_id' => $organization->id, 'user_id' => $user->id]);
-        $membership->delete();
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+
+        // While the deactivated row exists, self-service rejoining is blocked.
+        Sanctum::actingAs($user);
+        $this->postJson('/api/v1/organization/join/work-email')->assertForbidden();
+
+        $this->actingAsDashboard($this->makeStaff(PivotRole::PIVOT_SUPER_ADMIN));
+        $this->deleteJson($this->url($organization, "members/{$membership->id}/remove"))->assertOk();
 
         Sanctum::actingAs($user);
-        $this->postJson('/api/v1/organization/join/work-email')
-            ->assertForbidden()
-            ->assertJsonPath('join_status', 'MEMBERSHIP_DEACTIVATED');
-
-        $this->assertSame(1, OrganizationMembership::withTrashed()->where('user_id', $user->id)->count());
+        $this->postJson('/api/v1/organization/join/work-email')->assertCreated()->assertJsonPath('join_status', 'JOINED');
     }
 
     private function membershipOf($user): OrganizationMembership

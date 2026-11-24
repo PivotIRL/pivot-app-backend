@@ -4,10 +4,12 @@ namespace App\Organization\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Organization\Data\CorporateJoinResult;
+use App\Organization\Http\Requests\AcceptMemberInvitationLinkRequest;
 use App\Organization\Http\Requests\AcceptOrganizationInvitationRequest;
 use App\Organization\Http\Requests\RedeemOrganizationCodeRequest;
 use App\Organization\Http\Resources\CorporateJoinResource;
 use App\Organization\Services\CorporateOnboardingService;
+use App\Organization\Services\MemberInvitationLinkService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -34,6 +36,12 @@ class CorporateJoinController extends Controller
     public function acceptInvitation(AcceptOrganizationInvitationRequest $request): JsonResponse
     {
         return $this->respond($request, $this->onboarding->acceptInvitation($request->user(), $request->token()));
+    }
+
+    // Existing Pivot users invited with a signed link: { "link": "<the full link>" }.
+    public function acceptInvitationLink(AcceptMemberInvitationLinkRequest $request, MemberInvitationLinkService $links): JsonResponse
+    {
+        return $this->respond($request, $links->accept($request->user(), $request->invitationLink()));
     }
 
     // 201 when a seat was taken now, 200 when the user was already a member.

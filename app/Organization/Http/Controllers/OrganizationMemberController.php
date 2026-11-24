@@ -10,6 +10,7 @@ use App\Organization\Http\Resources\OrganizationMembershipResource;
 use App\Organization\Models\Organization;
 use App\Organization\Models\OrganizationMembership;
 use App\Organization\Services\MembershipService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
@@ -77,17 +78,17 @@ class OrganizationMemberController extends Controller
         );
     }
 
-    // Soft delete of an already deactivated member (hidden from the member list, history kept).
+    // Permanent delete of a membership in any status (roles and pending invitation revoked, audit kept).
     public function remove(
         Request $request,
         Organization $organization,
         OrganizationMembership $membership,
-    ): OrganizationMembershipResource {
+    ): JsonResponse {
         $this->authorizeManage($organization, $membership);
 
-        return OrganizationMembershipResource::make(
-            $this->memberships->remove($membership, $request->user())
-        );
+        $this->memberships->remove($membership, $request->user());
+
+        return response()->json(['message' => 'Member removed.']);
     }
 
     private function authorizeManage(Organization $organization, OrganizationMembership $membership): void
