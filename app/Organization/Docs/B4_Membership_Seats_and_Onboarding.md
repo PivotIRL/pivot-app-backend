@@ -237,13 +237,17 @@ Lock order is always code → organization (and invitation → organization), so
 
 **Admin:** `POST /organizations/{organization}/invitations` `{ email, role?, expires_in_days? }`
 - The email is lowercased. `role` defaults to `ORG_MEMBER`. Expiry defaults to 7 days, maximum 30.
-- Only the SHA-256 `token_hash` is stored. The plaintext `one_time_token` is returned once.
+- The code is 6 capital letters and numbers (no 0, O, 1 or I), not case sensitive. Lookups use the SHA-256 `token_hash` and a keyed hash of the code; encrypted copies of both are stored so the link can be shown again.
+- `GET …/invitations` returns `invitation_link` for pending, unexpired invitations (otherwise `null`). Links for admin roles are shown only to users who may assign that role.
+- The invitation is emailed as `{ORGANIZATION_INVITE_BASE_URL}/organization/join?token=…&code=…`. `email_sent` is `false` if the mail failed.
+- The link opens a read-only web page with the code, the app store links and, when `ORGANIZATION_INVITE_APP_URL` is set, an "Open in Pivot app" button.
 - Re-inviting the same email revokes the previous pending invitation, so the old token stops working. A partial unique index allows one pending invitation per email.
 - If a Pivot account with that email exists, it gets an `invited` membership (no seat).
-- Inviting someone who is already an active member returns **409**.
+- Inviting someone who is already an active or suspended member returns **409**.
+- Deactivating or removing a member revokes their pending invitation.
 - Revoking (`DELETE …/invitations/{invitation}`) works only for pending invitations. An `invited` membership becomes `deactivated` with reason `invitation_revoked`; that reason does not block a later self-service join.
 
-**Employee:** `POST /api/v1/organization/invitations/accept` `{ "token": "…" }`
+**Employee:** `POST /api/v1/organization/invitations/accept` `{ "token": "…", "code": "K7M4QX" }`, or `{ "code": "K7M4QX" }` when typed in the app. A code alone only matches invitations addressed to the signed-in email; after 5 wrong codes it stops working and only the link does.
 
 One transaction:
 1. Lock the invitation.
@@ -327,7 +331,8 @@ Employee (any signed-in Mobile App user with a mobile token; middleware `auth:sa
 |---|---|---|---|
 | POST | `/api/v1/organization/join/work-email` | — | 201 / 200 `CorporateJoinResource` |
 | POST | `/api/v1/organization/join/code` | `code` | 201 / 200 |
-| POST | `/api/v1/organization/invitations/accept` | `token` | 201 / 200 |
+| POST | `/api/v1/organization/invitations/accept` | `token` + `code`, or `code` | 201 / 200 |
+| GET | `/api/v1/organization/invitations/preview` | query `token`, `code?` (public) | 200 |
 | POST | `/api/v1/auth/register` | (unchanged) | 201 + `corporate_join` |
 
 Dashboard profile (dashboard token; middleware `auth:organization-dashboard`, `organization.dashboard`): `GET /api/v1/organization/me` returns 200 `CorporateAccessSummaryResource`: the user's account and the organizations, roles and permissions they can use now.
@@ -342,9 +347,7 @@ Admin (tenant-scoped, dashboard token; middleware `auth:organization-dashboard`,
 | PUT/PATCH | `…/members/{membership}` | `name` (email is not editable) | `members.manage` + rank; member must be invited/active/suspended |
 | DELETE | `…/members/{membership}` | `reason` | `members.manage` + rank |
 | DELETE | `…/members/{membership}/remove` | — | `members.manage` + rank; any status; permanent delete (roles and pending invitation revoked, audit kept) |
-| POST | `…/members/invitation-link` | `email`, `expires_in_days?` (1–30) | `invitations.manage`; existing Pivot users only; emails a signed `/{user}/{organization}/{membership}` link |
 
-Member invitation link: `GET /{user_id}/{organization_id}/{membership_id}?expires=…&signature=…` (public web page, read-only) shows the invitation and an "Open in Pivot app" button (`ORGANIZATION_MEMBER_INVITE_APP_URL?link=…`). The app accepts with `POST /api/v1/organization/invitation-link/accept` `{ "link": "…" }` (mobile token). Deactivating or removing the invited member cancels the link.
 | GET | `…/invitations` | `status?`, `per_page?` | `invitations.manage` |
 | POST | `…/invitations` | `email`, `role?`, `expires_in_days?` (1–30) | `invitations.manage` (+ role rank for admin roles) |
 | DELETE | `…/invitations/{invitation}` | — | `invitations.manage` |
@@ -371,7 +374,8 @@ POST /api/v1/organizations/{organization}/invitations
 
 201 Created
 { "data": { "id": 3, "email": "new.admin@acme.com", "role": "ORG_ADMIN", "status": "pending", "expires_at": "…", "is_expired": false, … },
-  "one_time_token": "k2J…64 characters" }
+  "one_time_token": "k2J…64 characters", "invitation_code": "K7M4QX",
+  "invitation_link": "https://pivotirl.com.au/organization/join?token=k2J…&code=K7M4QX", "email_sent": true }
 ```
 
 ```http
@@ -454,10 +458,10 @@ The concurrency tests were checked against a version without the row locks. All 
 2. **Self-service rejoin is blocked after an admin action.** After an admin suspends or deactivates someone, that person cannot come back by work email or code; an admin restore or a new invitation can bring them back. See `SeatService::ensureNotRemovedByAdmin()`.
 3. **Deactivation revokes all organization roles.** Suspension keeps the role rows but blocks their use.
 4. **Lowering `seat_limit` below the active count is allowed** (B3) and is only reported by reconciliation. Nobody is removed automatically. The alternative is to reject such a change in `OrganizationService::update()` / `renew()`.
-5. **Invitation emails are not sent.** The admin receives the one-time token, like codes in B3. Sending the email (with a deep link) fits B7 "Employee invitations".
+5. **Email ownership.** The emailed link proves the person received it, but registration still does not verify email addresses (see item 1).
 6. **Invitation expiry:** 7 days by default, at most 30.
 7. **Organization removal releases all seats** (a small change to the B3 remove action). Without it, those users could never join another organization.
-8. **Rate limiting** on code redemption and invitation acceptance is left to B6 step 7. Codes are 32 random characters and tokens 64, so guessing is not practical meanwhile.
+8. **Rate limiting:** invitation preview and acceptance are limited. Rate limiting on organization code redemption is left to B6 step 7.
 
 ---
 

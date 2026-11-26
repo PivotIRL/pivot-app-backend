@@ -17,7 +17,8 @@
 <div class="card">
     @if ($state === 'valid')
         <h1>Join {{ $organizationName }} on Pivot</h1>
-        <p>Open this invitation in the Pivot app and sign in with the email address it was sent to.</p>
+        <p>Open this invitation in the Pivot app, then sign in or create an account with the email address it was sent to.</p>
+        <p>Your invitation code:<br><strong style="font-size:24px; letter-spacing:4px;">{{ $code }}</strong></p>
         @if ($appLink)
             <a class="button" href="{{ $appLink }}">Open in Pivot app</a>
         @endif

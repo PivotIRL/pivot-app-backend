@@ -41,6 +41,31 @@ class OrganizationInvitationRepository implements OrganizationInvitationReposito
             ->first();
     }
 
+    public function findByTokenHash(string $tokenHash): ?OrganizationInvitation
+    {
+        return OrganizationInvitation::query()->where('token_hash', $tokenHash)->first();
+    }
+
+    public function findByEmailAndCodeForUpdate(string $email, string $codeHash): ?OrganizationInvitation
+    {
+        return OrganizationInvitation::query()
+            ->where('email', $email)
+            ->where('code_hash', $codeHash)
+            ->whereIn('status', [InvitationStatus::PENDING, InvitationStatus::ACCEPTED])
+            ->where('code_failed_attempts', '<', OrganizationInvitation::MAX_CODE_ATTEMPTS)
+            ->latest('id')
+            ->lockForUpdate()
+            ->first();
+    }
+
+    public function recordFailedCode(string $email): void
+    {
+        OrganizationInvitation::query()
+            ->where('email', $email)
+            ->where('status', InvitationStatus::PENDING)
+            ->increment('code_failed_attempts');
+    }
+
     public function update(OrganizationInvitation $invitation, array $data): OrganizationInvitation
     {
         $invitation->update($data);

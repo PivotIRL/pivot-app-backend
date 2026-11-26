@@ -9,6 +9,7 @@ use App\Organization\Enums\MembershipJoinMethod;
 use App\Organization\Enums\MembershipStatus;
 use App\Organization\Exceptions\OrganizationActionException;
 use App\Organization\Models\Organization;
+use App\Organization\Models\OrganizationInvitation;
 use App\Organization\Models\OrganizationMembership;
 use App\Organization\Repositories\Contracts\OrganizationInvitationRepositoryInterface;
 use App\Organization\Repositories\Contracts\OrganizationMembershipRepositoryInterface;
@@ -99,7 +100,14 @@ class MembershipService
 
     public function deactivate(OrganizationMembership $membership, string $reason, User $actor): OrganizationMembership
     {
-        return $this->seats->release($membership, $reason, $actor)->load('user:id,name,email');
+        return DB::transaction(function () use ($membership, $reason, $actor) {
+            $released = $this->seats->release($membership, $reason, $actor);
+
+            // Otherwise a link sent earlier would let the person back in.
+            $this->revokePendingInvitation($released);
+
+            return $released->load('user:id,name,email');
+        });
     }
 
     /**
@@ -116,13 +124,7 @@ class MembershipService
 
             $revokedRoles = $this->roleAssignments->revokeAllFor($membership->organization_id, $membership->user_id);
 
-            $revokedInvitation = $membership->user
-                ? $this->invitations->findPending($membership->organization_id, Str::lower(trim($membership->user->email)))
-                : null;
-
-            if ($revokedInvitation) {
-                $this->invitations->update($revokedInvitation, ['status' => InvitationStatus::REVOKED]);
-            }
+            $revokedInvitation = $this->revokePendingInvitation($membership);
 
             $this->audit->record(
                 action: AuditAction::MEMBERSHIP_REMOVED,
@@ -170,5 +172,18 @@ class MembershipService
 
             return $membership->load('user:id,name,email');
         });
+    }
+
+    private function revokePendingInvitation(OrganizationMembership $membership): ?OrganizationInvitation
+    {
+        $membership->loadMissing('user:id,email');
+
+        $invitation = $membership->user
+            ? $this->invitations->findPending($membership->organization_id, Str::lower(trim($membership->user->email)))
+            : null;
+
+        return $invitation
+            ? $this->invitations->update($invitation, ['status' => InvitationStatus::REVOKED])
+            : null;
     }
 }

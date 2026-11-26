@@ -21,6 +21,19 @@ interface OrganizationInvitationRepositoryInterface
      */
     public function findByTokenHashForUpdate(string $tokenHash): ?OrganizationInvitation;
 
+    public function findByTokenHash(string $tokenHash): ?OrganizationInvitation;
+
+    /**
+     * The newest pending or accepted invitation for this email with this code, locked until the transaction ends.
+     * Invitations that reached the wrong-code limit are not returned.
+     */
+    public function findByEmailAndCodeForUpdate(string $email, string $codeHash): ?OrganizationInvitation;
+
+    /**
+     * Counts one wrong code against every pending invitation of this email.
+     */
+    public function recordFailedCode(string $email): void;
+
     public function update(OrganizationInvitation $invitation, array $data): OrganizationInvitation;
 
     /**

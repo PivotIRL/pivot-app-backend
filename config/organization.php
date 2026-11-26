@@ -10,16 +10,14 @@ return [
         'token_ttl_minutes' => (int) env('ORGANIZATION_DASHBOARD_TOKEN_TTL_MINUTES', 720),
     ],
 
-    'member_invitation' => [
-        // Host of the emailed link: {base_url}/{user_id}/{organization_id}/{membership_id}?expires=…&signature=…
-        'base_url' => env('ORGANIZATION_MEMBER_INVITE_BASE_URL', env('APP_URL', 'http://localhost')),
+    'invitation' => [
+        // Host of the emailed link: {base_url}/organization/join?token=…&code=…
+        // It must reach this application.
+        'base_url' => env('ORGANIZATION_INVITE_BASE_URL', 'https://pivotirl.com.au'),
 
-        // Mobile app deep link opened by the "Open in Pivot app" button, e.g. pivot://organization/invitation.
-        // The full signed link is passed to it as ?link=…; the app posts it to /api/v1/organization/invitation-link/accept.
-        // When empty, the page shows only the app store links.
-        'app_url' => env('ORGANIZATION_MEMBER_INVITE_APP_URL'),
-
-        'expiry_days' => (int) env('ORGANIZATION_MEMBER_INVITE_EXPIRY_DAYS', 7),
+        // Mobile app deep link opened by the "Open in Pivot app" button, e.g. pivot://organization/join.
+        // It receives ?token=…&code=…. When empty, the page shows only the code and the app store links.
+        'app_url' => env('ORGANIZATION_INVITE_APP_URL'),
 
         'ios_store_url' => 'https://apps.apple.com/app/6760004980',
         'android_store_url' => 'https://play.google.com/store/apps/details?id=com.pivotirl.mobile',

@@ -127,6 +127,15 @@ class OrganizationServiceProvider extends ServiceProvider
         RateLimiter::for('organization-dashboard-reset-password', fn (Request $request) => [
             Limit::perMinute(10)->by($request->ip()),
         ]);
+
+        // Slows guessing of invitation codes (each invitation also locks its code after 5 wrong tries).
+        RateLimiter::for('organization-invitation-accept', fn (Request $request) => [
+            Limit::perMinute(10)->by((string) $request->user()?->getAuthIdentifier()),
+        ]);
+
+        RateLimiter::for('organization-invitation-preview', fn (Request $request) => [
+            Limit::perMinute(30)->by($request->ip()),
+        ]);
     }
 
     private function registerRoutes(): void
