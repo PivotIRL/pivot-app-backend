@@ -38,6 +38,7 @@ enum AuditAction: string
     case MEMBERSHIPS_RELEASED = 'organization_membership.released';
     case MEMBERSHIP_REMOVED = 'organization_membership.removed';
     case MEMBER_PROFILE_UPDATED = 'organization_membership.profile_updated';
+    // No longer written; kept so existing audit rows still load.
     case MEMBER_INVITATION_LINK_SENT = 'organization_membership.invitation_link_sent';
 
     case INVITATION_CREATED = 'organization_invitation.created';

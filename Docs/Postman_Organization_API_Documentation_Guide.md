@@ -222,16 +222,14 @@ Confirm valid `code_type` values. The create response includes a one-time code; 
 | Update member | `PATCH /organizations/{{organizationId}}/members/{{membershipId}}` (`PUT` also accepted) | JSON: required `name` (string, maximum 255; trimmed). Edits the member's display name on their Pivot user account. The email cannot be changed through this endpoint; an `email` field is ignored. Only `invited`, `active` or `suspended` members; otherwise 409. |
 | Deactivate member | `DELETE /organizations/{{organizationId}}/members/{{membershipId}}` | JSON: required `reason` (string, maximum 255 characters). |
 | Remove member (permanent) | `DELETE /organizations/{{organizationId}}/members/{{membershipId}}/remove` | No body. Any status. Permanently deletes the membership row, revokes the member's organization roles and any pending invitation, and frees the seat if they were active. Returns `{"message": "Member removed."}`. The audit log keeps a record; the person's Pivot account is not touched and they can join again later as a new member. |
-| Send member invitation link | `POST /organizations/{{organizationId}}/members/invitation-link` | JSON: required `email` (must belong to an existing Pivot account, otherwise 422); optional `expires_in_days` (1-30, default 7). Creates or reuses an `invited` membership (no seat) and emails the link `{base}/{user_id}/{organization_id}/{membership_id}?expires=…&signature=…`. 201 response: `data` (membership), `invitation_link`, `expires_at`, `email_sent`. 409 if the person is already active or is suspended (use restore). Permission: `invitations.manage`. |
-| Accept member invitation link (mobile) | `POST /organization/invitation-link/accept` | Mobile token. JSON: required `link` (the full link). Same responses as other joins (`join_status`): 201 `JOINED`, 200 `ALREADY_MEMBER`, 403 `INVITATION_EMAIL_MISMATCH` (signed in as someone else), 404 `INVALID_INVITATION` (tampered, cancelled or removed), 409 `INVITATION_EXPIRED` / `SEAT_LIMIT_REACHED` / etc. |
-| List invitations | `GET /organizations/{{organizationId}}/invitations` | Optional query: `status` (valid invitation status enum) and `per_page` (integer, 1-100; default 25). |
-| Create invitation | `POST /organizations/{{organizationId}}/invitations` | JSON: required `email`; optional `role` (defaults to `ORG_MEMBER`) and `expires_in_days` (integer, 1-30). |
+| List invitations | `GET /organizations/{{organizationId}}/invitations` | Optional query: `status` (valid invitation status enum) and `per_page` (integer, 1-100; default 25). Each item has `invitation_link` (`null` when not pending, expired, or an admin role you cannot assign). |
+| Create invitation | `POST /organizations/{{organizationId}}/invitations` | JSON: required `email` (a Pivot account is not needed yet); optional `role` (defaults to `ORG_MEMBER`) and `expires_in_days` (integer, 1-30, default 7). Emails `https://pivotirl.com.au/organization/join?token=…&code=…`. 201 response: `data`, `one_time_token`, `invitation_code` (6 capital letters and numbers), `invitation_link`, `email_sent`. 409 if the person is already active or is suspended (use restore). Re-inviting replaces the previous invitation. |
 | Revoke invitation | `DELETE /organizations/{{organizationId}}/invitations/{{invitationId}}` | No body. |
 | List role assignments | `GET /organizations/{{organizationId}}/roles` | Optional query: `role` (valid organization role enum) and `per_page` (integer, 1-100; default 25). |
 | Assign role | `POST /organizations/{{organizationId}}/roles` | JSON: required `user_id` (existing user ID) and `role` (valid organization role enum). |
 | Revoke role assignment | `DELETE /organizations/{{organizationId}}/roles/{{roleAssignmentId}}` | Optional JSON body: `reason` (string, maximum 500 characters). |
 
-Invitation creation returns a one-time token. Never publish or save a real token in shared examples.
+Invitation creation returns a one-time token, code and link. Never publish or save real values in shared examples.
 
 ### Audit and controls
 
@@ -252,7 +250,8 @@ These are Mobile App endpoints and require a mobile token (`{{mobileToken}}`). A
 |---|---|---|
 | Join with work email | `POST /corporate/join/work-email` | No body. Uses the signed-in user's existing account and email. |
 | Join with redemption code | `POST /corporate/join/code` | JSON: required `code` (string, maximum 64 characters). |
-| Accept invitation | `POST /corporate/invitations/accept` | JSON: required `token` (string, maximum 128 characters). |
+| Preview invitation | `GET /organization/invitations/preview` | No authentication. Query: required `token`, optional `code`. 200: `data.organization_name`, `data.email`, `data.expires_at`. 404 `INVALID_INVITATION`, 409 `INVITATION_EXPIRED`. Limited to 30 requests per minute per IP. |
+| Accept invitation | `POST /organization/invitations/accept` | JSON: `token` and `code` from the link, or `code` alone when typed by the user (6 letters or numbers, not case sensitive). The signed-in email must be the invited email. 5 wrong codes lock code entry for that invitation (the link still works). Limited to 10 requests per minute per user. |
 
 Join endpoints return `join_status`, `message`, `organization`, and `membership`. They return HTTP 201 when joining takes a seat and HTTP 200 when the user is already a member. Verify other outcomes from actual responses.
 

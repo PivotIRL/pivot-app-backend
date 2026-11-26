@@ -20,11 +20,14 @@
                 </tr>
                 <tr>
                     <td style="font-size:15px; color:#374151; line-height:1.6; padding-bottom:25px;">
-                        Hi {{ $user->name }},<br><br>
+                        Hi,<br><br>
                         {{ $organization->name }} has invited you to join their organization on Pivot.
-                        Open the link on your phone and sign in to the Pivot app with this email address to accept.
+                        Open the link on your phone and sign in to the Pivot app (or create an account) with this email address to accept.
                         <br><br>
-                        This link expires on {{ $expiresAt->format('j F Y') }}.
+                        If the link does not open the app, enter this code in the app:
+                        <strong style="font-size:20px; letter-spacing:4px; color:#111827;">{{ $code }}</strong>
+                        <br><br>
+                        This invitation expires on {{ $expiresAt->format('j F Y') }}.
                     </td>
                 </tr>
                 <tr>

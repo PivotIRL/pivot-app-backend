@@ -47,15 +47,6 @@ class OrganizationMembershipRepository implements OrganizationMembershipReposito
             ->first();
     }
 
-    public function findOwned(int $membershipId, int $organizationId, int $userId): ?OrganizationMembership
-    {
-        return OrganizationMembership::query()
-            ->whereKey($membershipId)
-            ->where('organization_id', $organizationId)
-            ->where('user_id', $userId)
-            ->first();
-    }
-
     public function delete(OrganizationMembership $membership): void
     {
         $membership->delete();

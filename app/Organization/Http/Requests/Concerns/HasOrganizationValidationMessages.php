@@ -50,7 +50,9 @@ trait HasOrganizationValidationMessages
     public function messages(): array
     {
         return [
+            'code.regex' => 'The invitation code must be 6 letters or numbers.',
             'code.required' => 'A redemption code is required.',
+            'code.required_without' => 'An invitation token or code is required.',
             'contract_end_at.after' => 'The contract end date must be in the future and after the contract start date.',
             'country_code.size' => 'The country code must be a 2-letter code, for example AU.',
             'domain.regex' => 'Enter a valid domain, for example example.com.',
@@ -66,6 +68,7 @@ trait HasOrganizationValidationMessages
             'timezone.timezone' => 'Enter a valid timezone, for example Australia/Sydney.',
             'to.after_or_equal' => 'The to date must be the same as or after the from date.',
             'token.required' => 'An invitation token is required.',
+            'token.required_without' => 'An invitation token or code is required.',
             'user_id.exists' => 'The selected user does not exist.',
             ...$this->enumMessages(),
         ];

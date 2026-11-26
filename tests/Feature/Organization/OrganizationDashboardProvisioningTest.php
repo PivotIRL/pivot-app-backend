@@ -95,7 +95,7 @@ class OrganizationDashboardProvisioningTest extends TestCase
             'role' => OrganizationRole::ORG_ADMIN->value,
         ])->assertCreated()->json('one_time_token');
 
-        Mail::assertNothingSent();
+        Mail::assertNotSent(OrganizationDashboardPasswordMail::class);
 
         Sanctum::actingAs($invitee);
         $this->postJson('/api/v1/organization/invitations/accept', ['token' => $token])->assertCreated();
@@ -118,7 +118,7 @@ class OrganizationDashboardProvisioningTest extends TestCase
         $this->postJson('/api/v1/organization/invitations/accept', ['token' => $token])->assertCreated();
 
         $this->assertDatabaseMissing('organization_dashboard_accounts', ['user_id' => $invitee->id]);
-        Mail::assertNothingSent();
+        Mail::assertNotSent(OrganizationDashboardPasswordMail::class);
     }
 
     public function test_granting_a_pivot_role_provisions_an_account(): void

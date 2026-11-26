@@ -22,11 +22,6 @@ interface OrganizationMembershipRepositoryInterface
     public function findFor(int $organizationId, int $userId): ?OrganizationMembership;
 
     /**
-     * One membership, only if it belongs to both the organization and the user.
-     */
-    public function findOwned(int $membershipId, int $organizationId, int $userId): ?OrganizationMembership;
-
-    /**
      * Permanently delete the membership row. Audit log entries are kept.
      */
     public function delete(OrganizationMembership $membership): void;

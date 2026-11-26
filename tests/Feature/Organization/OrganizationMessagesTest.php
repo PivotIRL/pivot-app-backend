@@ -163,7 +163,7 @@ class OrganizationMessagesTest extends TestCase
 
         $this->postJson('/api/v1/organization/invitations/accept', [])
             ->assertUnprocessable()
-            ->assertJsonPath('errors.token.0', 'An invitation token is required.');
+            ->assertJsonPath('errors.token.0', 'An invitation token or code is required.');
 
         $this->getJson('/api/v1/organizations?per_page=500')
             ->assertUnprocessable()

@@ -116,18 +116,27 @@ class CorporateOnboardingService
     }
 
     /**
-     * Token → pending, not expired, addressed to this user's email → seat → role from the invitation.
+     * Link (token, plus its code) or the 6-character code typed in the app → pending, not expired, addressed to this
+     * user's email → seat → role from the invitation.
      *
      * @throws CorporateJoinException
      */
-    public function acceptInvitation(User $user, string $plainToken): CorporateJoinResult
+    public function acceptInvitation(User $user, ?string $plainToken, ?string $code = null): CorporateJoinResult
     {
-        $tokenHash = hash('sha256', trim($plainToken));
+        $email = Str::lower(trim($user->email));
 
-        return DB::transaction(function () use ($user, $tokenHash) {
-            $invitation = $this->invitations->findByTokenHashForUpdate($tokenHash);
+        // Null means a typed code matched nothing. It is counted outside the transaction, which would undo it.
+        $result = DB::transaction(function () use ($user, $email, $plainToken, $code) {
+            $invitation = $plainToken !== null
+                ? $this->invitations->findByTokenHashForUpdate(hash('sha256', trim($plainToken)))
+                : $this->invitations->findByEmailAndCodeForUpdate($email, OrganizationInvitation::hashCode((string) $code));
 
-            if ($invitation === null || $invitation->organization === null) {
+            if ($invitation === null && $plainToken === null) {
+                return null;
+            }
+
+            if ($invitation === null || $invitation->organization === null
+                || ($plainToken !== null && $code !== null && ! $invitation->matchesCode($code))) {
                 throw CorporateJoinException::because(CorporateJoinStatus::INVALID_INVITATION);
             }
 
@@ -143,7 +152,7 @@ class CorporateOnboardingService
                 throw CorporateJoinException::because(CorporateJoinStatus::INVITATION_EXPIRED);
             }
 
-            if (Str::lower(trim($user->email)) !== $invitation->email) {
+            if ($email !== $invitation->email) {
                 throw CorporateJoinException::because(CorporateJoinStatus::INVITATION_EMAIL_MISMATCH);
             }
 
@@ -172,6 +181,14 @@ class CorporateOnboardingService
 
             return $result;
         });
+
+        if ($result === null) {
+            $this->invitations->recordFailedCode($email);
+
+            throw CorporateJoinException::because(CorporateJoinStatus::INVALID_INVITATION);
+        }
+
+        return $result;
     }
 
     /**
